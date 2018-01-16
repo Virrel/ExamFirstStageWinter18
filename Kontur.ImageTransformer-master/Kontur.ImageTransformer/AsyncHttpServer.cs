@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kontur.ImageTransformer.Handlers;
+using System;
 using System.IO;
 using System.Net;
 using System.Threading;
@@ -11,6 +12,7 @@ namespace Kontur.ImageTransformer
         public AsyncHttpServer()
         {
             listener = new HttpListener();
+            requestHandler = new RequestHandler();
         }
         
         public void Start(string prefix)
@@ -90,10 +92,34 @@ namespace Kontur.ImageTransformer
         private async Task HandleContextAsync(HttpListenerContext listenerContext)
         {
             // TODO: implement request handling
+            try
+            {
+                var requestUrl = WebUtility.UrlDecode(listenerContext.Request.Url.AbsolutePath);
+                var requestMethod = listenerContext.Request.HttpMethod;
+                var requestBody = GetDataFromRequest(listenerContext);
 
-            listenerContext.Response.StatusCode = (int)HttpStatusCode.OK;
-            using (var writer = new StreamWriter(listenerContext.Response.OutputStream))
-                writer.WriteLine("Hello, world!");
+                var response = requestHandler.GetResponse(requestUrl, requestMethod, requestBody);
+
+                listenerContext.Response.StatusCode = (int)response.statusCode;
+                using (var writer = new StreamWriter(listenerContext.Response.OutputStream))
+                    writer.WriteLine(response.Data);
+            }
+            catch (Exception exc)
+            {
+                listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            }
+            finally
+            {
+                listenerContext.Response.Close();
+            }
+        }
+
+        private static string GetDataFromRequest(HttpListenerContext context)
+        {
+            using (var reader = new StreamReader(context.Request.InputStream))
+            {
+                return reader.ReadToEnd();
+            }
         }
 
         private readonly HttpListener listener;
@@ -101,5 +127,6 @@ namespace Kontur.ImageTransformer
         private Thread listenerThread;
         private bool disposed;
         private volatile bool isRunning;
+        private RequestHandler requestHandler;
     }
 }

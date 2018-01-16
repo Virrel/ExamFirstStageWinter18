@@ -1,0 +1,9 @@
+D:\VirrelKontur\SourceTree\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\Kontur.ImageTransformer.exe.config
+D:\VirrelKontur\SourceTree\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\Kontur.ImageTransformer.exe
+D:\VirrelKontur\SourceTree\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\Kontur.ImageTransformer.pdb
+D:\VirrelKontur\SourceTree\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Kontur.ImageTransformer.csprojResolveAssemblyReference.cache
+D:\VirrelKontur\SourceTree\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Kontur.ImageTransformer.csproj.CoreCompileInputs.cache
+D:\VirrelKontur\SourceTree\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Kontur.ImageTransformer.exe
+D:\VirrelKontur\SourceTree\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Kontur.ImageTransformer.pdb
+D:\VirrelKontur\SourceTree\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\Newtonsoft.Json.dll
+D:\VirrelKontur\SourceTree\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\Newtonsoft.Json.xml
