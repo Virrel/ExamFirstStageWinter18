@@ -101,8 +101,9 @@ namespace Kontur.ImageTransformer
                 var response = requestHandler.GetResponse(requestUrl, requestMethod, requestBody);
 
                 listenerContext.Response.StatusCode = (int)response.statusCode;
-                using (var writer = new StreamWriter(listenerContext.Response.OutputStream))
-                    writer.WriteLine(response.Data);
+                if (response.Data != null)
+                    using (var writer = new StreamWriter(listenerContext.Response.OutputStream))
+                        writer.WriteLine(response.Data);
             }
             catch (Exception exc)
             {
