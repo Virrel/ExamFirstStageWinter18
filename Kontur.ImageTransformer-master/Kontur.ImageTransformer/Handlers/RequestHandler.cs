@@ -10,28 +10,67 @@ namespace Kontur.ImageTransformer.Handlers
 {
     class RequestHandler
     {
+        private UrlToHandlerMatch[] uthm;
         public RequestHandler()
         {
-            dd = new[] { @"^/process/sepia/\d+,\d+,\d+,\d+$" };
+            uthm = new[] { new UrlToHandlerMatch(@"^/process/sepia/(-?\d+,?){4}$", GetSepiaImageAsync),
+                new UrlToHandlerMatch(@"^/process/grayscale/(-?\d+,?){4}$", GetGrayScaleImageAsync),
+                new UrlToHandlerMatch(@"^/process/threshold\(\d{1,3}\)/(-?\d+,?){4}$", GetThresholdImageAsync)
+            };
         }
 
-        private string[] dd;
-
-        public Response GetResponse(string Url, string statusCode, string data)
+        private class UrlToHandlerMatch
         {
-            //if ( Regex.IsMatch(Url, h) )
-            //{
-            //    return new Response(HttpStatusCode.OK, null);
-            //}
-            //else
-            //    return new Response(HttpStatusCode.BadRequest, null);
+            public string Pattern { get; }
+            public Func<string, string, Task<Response>> handler;
+            public UrlToHandlerMatch( string pattern, Func<string, string, Task<Response>> h)
+            {
+                Pattern = pattern;
+                handler = h;
+            }
+        }
+
+        public async Task<Response> GetResponse(string Url, string code, string data)
+        {
+            var t = uthm.FirstOrDefault(i => Regex.IsMatch(Url, i.Pattern));
+            Console.WriteLine(Url);
+            if (t == null)
+                return new Response(HttpStatusCode.BadRequest, null);
             if (!IsImageResolutionOk(data))
                 return new Response(HttpStatusCode.BadRequest, null);
             if (!IsImageSizeOk(data))
                 return new Response(HttpStatusCode.BadRequest, null);
 
-            int[] coordinates = GetNormalizedCoords(Url);
-            return new Response(HttpStatusCode.OK, data);
+            return await t.handler(Url, data);
+
+            //return new Response(HttpStatusCode.OK, data);
+        }
+
+        private async Task<Response> GetSepiaImageAsync(string Url, string image)
+        {
+            return await Task.Run(() =>
+            {
+                int[] coordinates = GetNormalizedCoords(Url);
+                return new Response(HttpStatusCode.Accepted, "Sepia");
+            });
+        }
+
+        private async Task<Response> GetGrayScaleImageAsync(string Url, string image)
+        {
+            return await Task.Run(() =>
+            {
+                int[] coordinates = GetNormalizedCoords(Url);
+                return new Response(HttpStatusCode.Accepted, "GrayScale");
+            });
+        }
+
+        private async Task<Response> GetThresholdImageAsync(string Url, string image)
+        {
+            return await Task.Run(() =>
+            {
+                int[] coordinates = GetNormalizedCoords(Url);
+                return new Response(HttpStatusCode.Accepted, "Threshold");
+            });
         }
 
         private bool IsImageResolutionOk(string data)

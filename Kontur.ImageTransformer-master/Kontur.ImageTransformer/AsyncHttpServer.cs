@@ -98,14 +98,14 @@ namespace Kontur.ImageTransformer
                 var requestMethod = listenerContext.Request.HttpMethod;
                 var requestBody = GetDataFromRequest(listenerContext);
 
-                var response = requestHandler.GetResponse(requestUrl, requestMethod, requestBody);
+                var response = await requestHandler.GetResponse(requestUrl, requestMethod, requestBody);
 
                 listenerContext.Response.StatusCode = (int)response.statusCode;
                 if (response.Data != null)
                     using (var writer = new StreamWriter(listenerContext.Response.OutputStream))
                         writer.WriteLine(response.Data);
             }
-            catch (Exception exc)
+            catch 
             {
                 listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
             }
