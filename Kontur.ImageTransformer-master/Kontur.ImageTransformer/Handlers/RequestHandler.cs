@@ -13,9 +13,9 @@ namespace Kontur.ImageTransformer.Handlers
         private UrlToHandlerMatch[] uthm;
         public RequestHandler()
         {
-            uthm = new[] { new UrlToHandlerMatch(@"^/process/sepia/(-?\d+,?){4}$", GetSepiaImageAsync),
-                new UrlToHandlerMatch(@"^/process/grayscale/(-?\d+,?){4}$", GetGrayScaleImageAsync),
-                new UrlToHandlerMatch(@"^/process/threshold\(\d{1,3}\)/(-?\d+,?){4}$", GetThresholdImageAsync)
+            uthm = new[] { new UrlToHandlerMatch(@"^/process/sepia/(-?\d+,){3}-?\d+$", GetSepiaImageAsync),
+                new UrlToHandlerMatch(@"^/process/grayscale/(-?\d+,){3}\d+$", GetGrayScaleImageAsync),
+                new UrlToHandlerMatch(@"^/process/threshold\(\d{1,3}\)/(-?\d+,){3}-?\d+$", GetThresholdImageAsync)
             };
         }
 
@@ -50,7 +50,6 @@ namespace Kontur.ImageTransformer.Handlers
         {
             return await Task.Run(() =>
             {
-                int[] coordinates = GetNormalizedCoords(Url);
                 return new Response(HttpStatusCode.Accepted, "Sepia");
             });
         }
@@ -59,7 +58,6 @@ namespace Kontur.ImageTransformer.Handlers
         {
             return await Task.Run(() =>
             {
-                int[] coordinates = GetNormalizedCoords(Url);
                 return new Response(HttpStatusCode.Accepted, "GrayScale");
             });
         }
@@ -68,7 +66,6 @@ namespace Kontur.ImageTransformer.Handlers
         {
             return await Task.Run(() =>
             {
-                int[] coordinates = GetNormalizedCoords(Url);
                 return new Response(HttpStatusCode.Accepted, "Threshold");
             });
         }
@@ -83,23 +80,28 @@ namespace Kontur.ImageTransformer.Handlers
             return true;
         }
 
-        private int[] GetNormalizedCoords(string url)
+        private int[] GetParsedCoords(string url)
         {
-            
-            var coords = url.Split('/')[3]
-                .Split(',')
-                .Select(i => int.Parse(i))
-                .ToArray();
-            
-            for (int i=0; i<4; ++i)
+            try
             {
-                if (coords[i] < 0)
-                    coords[i] = 0;
-                else
-                if (coords[i] > 99)
-                    coords[i] = 99;
+                var coords = url.Split('/')[3]
+                    .Split(',')
+                    .Select(i => int.Parse(i))
+                    .ToArray();
+                for (int i = 0; i < 4; ++i)
+                {
+                    if (coords[i] < 0)
+                        coords[i] = 0;
+                    else
+                    if (coords[i] > 99)
+                        coords[i] = 99;
+                }
+                return coords;
             }
-            return coords;
+            catch (OverflowException)
+            {
+                return null;
+            }
         }
     }
 }
