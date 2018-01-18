@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -10,12 +11,23 @@ namespace Kontur.ImageTransformer.Handlers
     class Response
     {
         public HttpStatusCode statusCode { get; }
-        public string Data { get; }
+        public byte[] Data { get; }
+        public System.Drawing.Image Image { get; }
+        
 
-        public Response(HttpStatusCode code, string data)
+        public Response(HttpStatusCode code, System.Drawing.Image image)
         {
             statusCode = code;
-            Data = data;
+            Image = image;
+        }
+
+        public byte[] GetImageAsByteArray()
+        {
+            using (var ms = new MemoryStream())
+            {
+                Image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                return ms.ToArray();
+            }
         }
     }
 }

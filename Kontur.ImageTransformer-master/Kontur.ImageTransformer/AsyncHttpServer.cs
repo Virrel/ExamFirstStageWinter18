@@ -4,6 +4,8 @@ using System.IO;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Drawing.Imaging;
+using System.Drawing;
 
 namespace Kontur.ImageTransformer
 {
@@ -96,16 +98,19 @@ namespace Kontur.ImageTransformer
             {
                 var requestUrl = WebUtility.UrlDecode(listenerContext.Request.Url.AbsolutePath);
                 var requestMethod = listenerContext.Request.HttpMethod;
-                var requestBody = GetDataFromRequest(listenerContext);
+                //var requestBody = GetDataFromRequest(listenerContext);
+                //var t = listenerContext.Request.InputStream.Length;
+                var requestBody = Image.FromStream(listenerContext.Request.InputStream);
+                
 
                 var response = await requestHandler.GetResponse(requestUrl, requestMethod, requestBody);
 
                 listenerContext.Response.StatusCode = (int)response.statusCode;
-                if (response.Data != null)
-                    using (var writer = new StreamWriter(listenerContext.Response.OutputStream))
-                        writer.WriteLine(response.Data);
+                if (response.Image != null)
+                    using (var writer = new BinaryWriter(listenerContext.Response.OutputStream))
+                        writer.Write(response.GetImageAsByteArray());
             }
-            catch 
+            catch
             {
                 listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
             }
@@ -114,14 +119,14 @@ namespace Kontur.ImageTransformer
                 listenerContext.Response.Close();
             }
         }
-
-        private static string GetDataFromRequest(HttpListenerContext context)
-        {
-            using (var reader = new StreamReader(context.Request.InputStream))
-            {
-                return reader.ReadToEnd();
-            }
-        }
+        
+        //private byte[] GetDataFromRequest(HttpListenerContext context)
+        //{
+        //    using (var reader = new BinaryReader(context.Request.InputStream))
+        //    {
+        //        return reader.ReadBytes(160000);
+        //    }
+        //}
 
         private readonly HttpListener listener;
 

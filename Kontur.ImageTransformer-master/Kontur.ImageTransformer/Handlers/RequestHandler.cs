@@ -5,11 +5,19 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Drawing;
 
 namespace Kontur.ImageTransformer.Handlers
 {
     class RequestHandler
     {
+        private void Test()
+        {
+        }
+
+        /// <summary>
+        /// /////////////////////////////////////////
+        /// </summary>
         private UrlToHandlerMatch[] uthm;
         public RequestHandler()
         {
@@ -22,51 +30,125 @@ namespace Kontur.ImageTransformer.Handlers
         private class UrlToHandlerMatch
         {
             public string Pattern { get; }
-            public Func<string, string, Task<Response>> handler;
-            public UrlToHandlerMatch( string pattern, Func<string, string, Task<Response>> h)
+            public Func<string, Image, Task<Response>> handler;
+            public UrlToHandlerMatch( string pattern, Func<string, Image, Task<Response>> h)
             {
                 Pattern = pattern;
                 handler = h;
             }
         }
 
-        public async Task<Response> GetResponse(string Url, string code, string data)
+        public async Task<Response> GetResponse(string Url, string code, Image image)
         {
             var t = uthm.FirstOrDefault(i => Regex.IsMatch(Url, i.Pattern));
             Console.WriteLine(Url);
             if (t == null)
                 return new Response(HttpStatusCode.BadRequest, null);
-            if (!IsImageResolutionOk(data))
-                return new Response(HttpStatusCode.BadRequest, null);
-            if (!IsImageSizeOk(data))
-                return new Response(HttpStatusCode.BadRequest, null);
+            
 
-            return await t.handler(Url, data);
+            //if ( (image.Height * image.Width * 48) >= (100 * 1024) )        //calculation is wrong yet
+            //    return new Response(HttpStatusCode.BadRequest, null);
+
+            //if (!IsImageResolutionOk(data))
+            //    return new Response(HttpStatusCode.BadRequest, null);
+
+            //if (!IsImageSizeOk(data))
+            //    return new Response(HttpStatusCode.BadRequest, null);
+
+            return await t.handler(Url, image);
 
             //return new Response(HttpStatusCode.OK, data);
         }
 
-        private async Task<Response> GetSepiaImageAsync(string Url, string image)
+        private async Task<Response> GetSepiaImageAsync(string Url, Image image)
         {
             return await Task.Run(() =>
             {
-                return new Response(HttpStatusCode.Accepted, "Sepia");
+                //for (int i = 0; i < image.Length; i += 4)
+                //{
+                //    int red = image[i + 2];
+                //    int green = image[i + 1];
+                //    int blue = image[i + 0];
+
+                //    image[i + 2] = (byte)Math.Min((.393 * red) + (.769 * green) + (.189 * blue), 255.0); // red
+                //    image[i + 1] = (byte)Math.Min((.349 * red) + (.686 * green) + (.168 * blue), 255.0); // green
+                //    image[i + 0] = (byte)Math.Min((.272 * red) + (.534 * green) + (.131 * blue), 255.0); // blue
+                //}
+                Bitmap bmp = new Bitmap(image);
+                int width = bmp.Width;
+                int height = bmp.Height;
+
+                //color of pixel
+                Color p;
+
+                //sepia
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        //get pixel value
+                        p = bmp.GetPixel(x, y);
+
+                        //extract pixel component ARGB
+                        int a = p.A;
+                        int r = p.R;
+                        int g = p.G;
+                        int b = p.B;
+
+                        //calculate temp value
+                        int tr = (int)(0.393 * r + 0.769 * g + 0.189 * b);
+                        int tg = (int)(0.349 * r + 0.686 * g + 0.168 * b);
+                        int tb = (int)(0.272 * r + 0.534 * g + 0.131 * b);
+
+                        //set new RGB value
+                        if (tr > 255)
+                        {
+                            r = 255;
+                        }
+                        else
+                        {
+                            r = tr;
+                        }
+
+                        if (tg > 255)
+                        {
+                            g = 255;
+                        }
+                        else
+                        {
+                            g = tg;
+                        }
+
+                        if (tb > 255)
+                        {
+                            b = 255;
+                        }
+                        else
+                        {
+                            b = tb;
+                        }
+
+                        //set the new RGB value in image pixel
+                        bmp.SetPixel(x, y, Color.FromArgb(a, r, g, b));
+                    }
+                }
+                return new Response(HttpStatusCode.Accepted, bmp);
             });
         }
 
-        private async Task<Response> GetGrayScaleImageAsync(string Url, string image)
+        private async Task<Response> GetGrayScaleImageAsync(string Url, Image image)
         {
             return await Task.Run(() =>
             {
-                return new Response(HttpStatusCode.Accepted, "GrayScale");
+                return new Response(HttpStatusCode.Accepted, image);
             });
         }
 
-        private async Task<Response> GetThresholdImageAsync(string Url, string image)
+        private async Task<Response> GetThresholdImageAsync(string Url, Image image)
         {
             return await Task.Run(() =>
             {
-                return new Response(HttpStatusCode.Accepted, "Threshold");
+                return new Response(HttpStatusCode.Accepted, image);
             });
         }
 
