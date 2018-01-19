@@ -96,12 +96,17 @@ namespace Kontur.ImageTransformer
             // TODO: implement request handling
             try
             {
+                if (listenerContext.Request.ContentLength64 > 1024 * 100)
+                    throw new NotImplementedException("Request body size higher than 100kb");
+
                 var requestUrl = WebUtility.UrlDecode(listenerContext.Request.Url.AbsolutePath);
                 var requestMethod = listenerContext.Request.HttpMethod;
                 //var requestBody = GetDataFromRequest(listenerContext);
                 //var t = listenerContext.Request.InputStream.Length;
-                var requestBody = Image.FromStream(listenerContext.Request.InputStream);
                 
+                //var t = ms.GetBuffer().Length;
+                //t = 0;
+                var requestBody = Image.FromStream(listenerContext.Request.InputStream);
 
                 var response = await requestHandler.GetResponse(requestUrl, requestMethod, requestBody);
 
@@ -110,21 +115,28 @@ namespace Kontur.ImageTransformer
                     using (var writer = new BinaryWriter(listenerContext.Response.OutputStream))
                         writer.Write(response.GetImageAsByteArray());
             }
-            catch
+            //catch
+            //{
+            //    listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            //}
+            catch (Exception ex)
             {
                 listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                Console.WriteLine(ex);
+                Console.WriteLine("//////////////////////////////////////////////////////////");
+                Console.WriteLine();
             }
             finally
             {
                 listenerContext.Response.Close();
             }
         }
-        
+
         //private byte[] GetDataFromRequest(HttpListenerContext context)
         //{
         //    using (var reader = new BinaryReader(context.Request.InputStream))
         //    {
-        //        return reader.ReadBytes(160000);
+        //        return reader.ReadBytes(102400);
         //    }
         //}
 

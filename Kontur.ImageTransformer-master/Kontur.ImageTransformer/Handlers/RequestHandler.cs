@@ -22,7 +22,7 @@ namespace Kontur.ImageTransformer.Handlers
         public RequestHandler()
         {
             uthm = new[] { new UrlToHandlerMatch(@"^/process/sepia/(-?\d+,){3}-?\d+$", GetSepiaImageAsync),
-                new UrlToHandlerMatch(@"^/process/grayscale/(-?\d+,){3}\d+$", GetGrayScaleImageAsync),
+                new UrlToHandlerMatch(@"^/process/grayscale/(-?\d+,){3}-?\d+$", GetGrayScaleImageAsync),
                 new UrlToHandlerMatch(@"^/process/threshold\(\d{1,3}\)/(-?\d+,){3}-?\d+$", GetThresholdImageAsync)
             };
         }
@@ -37,7 +37,6 @@ namespace Kontur.ImageTransformer.Handlers
                 handler = h;
             }
         }
-
         public async Task<Response> GetResponse(string Url, string code, Image image)
         {
             var t = uthm.FirstOrDefault(i => Regex.IsMatch(Url, i.Pattern));
@@ -45,7 +44,7 @@ namespace Kontur.ImageTransformer.Handlers
             if (t == null)
                 return new Response(HttpStatusCode.BadRequest, null);
             
-
+            Console.WriteLine(String.Format("W: {0}, H: {1}, D: {2}", image.Width, image.Height, image.PixelFormat));
             //if ( (image.Height * image.Width * 48) >= (100 * 1024) )        //calculation is wrong yet
             //    return new Response(HttpStatusCode.BadRequest, null);
 
@@ -64,24 +63,13 @@ namespace Kontur.ImageTransformer.Handlers
         {
             return await Task.Run(() =>
             {
-                //for (int i = 0; i < image.Length; i += 4)
-                //{
-                //    int red = image[i + 2];
-                //    int green = image[i + 1];
-                //    int blue = image[i + 0];
-
-                //    image[i + 2] = (byte)Math.Min((.393 * red) + (.769 * green) + (.189 * blue), 255.0); // red
-                //    image[i + 1] = (byte)Math.Min((.349 * red) + (.686 * green) + (.168 * blue), 255.0); // green
-                //    image[i + 0] = (byte)Math.Min((.272 * red) + (.534 * green) + (.131 * blue), 255.0); // blue
-                //}
                 Bitmap bmp = new Bitmap(image);
                 int width = bmp.Width;
                 int height = bmp.Height;
-
+                
                 //color of pixel
                 Color p;
-
-                //sepia
+                
                 for (int y = 0; y < height; y++)
                 {
                     for (int x = 0; x < width; x++)
@@ -101,38 +89,17 @@ namespace Kontur.ImageTransformer.Handlers
                         int tb = (int)(0.272 * r + 0.534 * g + 0.131 * b);
 
                         //set new RGB value
-                        if (tr > 255)
-                        {
-                            r = 255;
-                        }
-                        else
-                        {
-                            r = tr;
-                        }
+                        r = tr > 255 ? 255 : tr;
 
-                        if (tg > 255)
-                        {
-                            g = 255;
-                        }
-                        else
-                        {
-                            g = tg;
-                        }
+                        g = tg > 255 ? 255 : tg;
 
-                        if (tb > 255)
-                        {
-                            b = 255;
-                        }
-                        else
-                        {
-                            b = tb;
-                        }
+                        b = tb > 255 ? 255 : tb;
 
                         //set the new RGB value in image pixel
                         bmp.SetPixel(x, y, Color.FromArgb(a, r, g, b));
                     }
                 }
-                return new Response(HttpStatusCode.Accepted, bmp);
+                return new Response(HttpStatusCode.OK, bmp);
             });
         }
 
@@ -140,7 +107,33 @@ namespace Kontur.ImageTransformer.Handlers
         {
             return await Task.Run(() =>
             {
-                return new Response(HttpStatusCode.Accepted, image);
+                Bitmap bmp = new Bitmap(image);
+                int width = bmp.Width;
+                int height = bmp.Height;
+
+                //color of pixel
+                Color p;
+
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        //get pixel value
+                        p = bmp.GetPixel(x, y);
+
+                        //extract pixel component ARGB
+                        int a = p.A;
+                        int r = p.R;
+                        int g = p.G;
+                        int b = p.B;
+                        
+                        r = g = b = (r + g + b) / 3;
+
+                        //set the new RGB value in image pixel
+                        bmp.SetPixel(x, y, Color.FromArgb(a, r, g, b));
+                    }
+                }
+                return new Response(HttpStatusCode.OK, bmp);
             });
         }
 
@@ -148,7 +141,43 @@ namespace Kontur.ImageTransformer.Handlers
         {
             return await Task.Run(() =>
             {
-                return new Response(HttpStatusCode.Accepted, image);
+                Regex pattern = new Regex(@"\d{1,3}");
+                MatchCollection m = pattern.Matches(Url);
+                int requestedX = int.Parse(m[0].Value);
+                //int requestedX = int.Parse(m[0].Value.Substring(1, m[0].Value.Length - 2));
+
+                Bitmap bmp = new Bitmap(image);
+                int width = bmp.Width;
+                int height = bmp.Height;
+
+                //color of pixel
+                Color p;
+
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        //get pixel value
+                        p = bmp.GetPixel(x, y);
+
+                        //extract pixel component ARGB
+                        int a = p.A;
+                        int r = p.R;
+                        int g = p.G;
+                        int b = p.B;
+
+                        int intensity = (r + g + b) / 3;
+
+                        if (intensity >= 255 * requestedX / 100)
+                            r = g = b = 255;
+                        else
+                            r = g = b = 0;
+
+                        //set the new RGB value in image pixel
+                        bmp.SetPixel(x, y, Color.FromArgb(a, r, g, b));
+                    }
+                }
+                return new Response(HttpStatusCode.Accepted, bmp);
             });
         }
 
