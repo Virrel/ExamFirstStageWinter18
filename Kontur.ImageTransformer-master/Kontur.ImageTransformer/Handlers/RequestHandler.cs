@@ -45,25 +45,25 @@ namespace Kontur.ImageTransformer.Handlers
                 return new Response(HttpStatusCode.BadRequest, null);
             
             Console.WriteLine(String.Format("W: {0}, H: {1}, D: {2}", image.Width, image.Height, image.PixelFormat));
-            //if ( (image.Height * image.Width * 48) >= (100 * 1024) )        //calculation is wrong yet
-            //    return new Response(HttpStatusCode.BadRequest, null);
-
-            //if (!IsImageResolutionOk(data))
-            //    return new Response(HttpStatusCode.BadRequest, null);
-
-            //if (!IsImageSizeOk(data))
-            //    return new Response(HttpStatusCode.BadRequest, null);
-
+            
             return await t.handler(Url, image);
-
-            //return new Response(HttpStatusCode.OK, data);
         }
 
         private async Task<Response> GetSepiaImageAsync(string Url, Image image)
         {
             return await Task.Run(() =>
             {
-                Bitmap bmp = new Bitmap(image);
+                var c = GetRectangleFromUrl(Url);
+
+                var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
+                if (gg.IsEmpty)
+                    return new Response(HttpStatusCode.NoContent, null);
+                Bitmap bmp = CropImage(image, gg);
+
+                //Console.WriteLine(String.Format(@"Out. X: {0}, Y:{1}, W:{2}, H:{3}", c[0], c[1], c[2], c[3]));
+
+                image.Dispose();
+
                 int width = bmp.Width;
                 int height = bmp.Height;
                 
@@ -107,14 +107,12 @@ namespace Kontur.ImageTransformer.Handlers
         {
             return await Task.Run(() =>
             {
-                var c = GetParsedCoords(Url);
-                if (c == null)
+                var c = GetRectangleFromUrl(Url);
+
+                var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
+                if (gg.IsEmpty)
                     return new Response(HttpStatusCode.NoContent, null);
-                Rectangle rec = new Rectangle(0, 0, image.Width, image.Height);
-                if (!rec.IntersectsWith(new Rectangle(c[0], c[1], c[2], c[3])))
-                    return new Response(HttpStatusCode.NoContent, null);
-                Bitmap bmp = CropImage(image, c[0], c[1], c[2], c[3]);
-                Console.WriteLine(String.Format(@"Out. X: {0}, Y:{1}, W:{2}, H:{3}",c[0], c[1], c[2], c[3]));
+                Bitmap bmp = CropImage(image, gg);
                 image.Dispose();
                 //if (bmp == null)
                 //    return new Response(HttpStatusCode.ExpectationFailed, null);
@@ -149,27 +147,25 @@ namespace Kontur.ImageTransformer.Handlers
 
         private async Task<Response> GetThresholdImageAsync(string Url, Image image)
         {
+            var c = GetRectangleFromUrl(Url);
+
+            var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
+            if (gg.IsEmpty)
+                return new Response(HttpStatusCode.NoContent, null);
+            Bitmap bmp = CropImage(image, gg);
+            int width = bmp.Width;
+            int height = bmp.Height;
+
+            Regex pattern = new Regex(@"\d{1,3}");
+            MatchCollection m = pattern.Matches(Url);
+            int requestedX = int.Parse(m[0].Value);
+            //int requestedX = int.Parse(m[0].Value.Substring(1, m[0].Value.Length - 2));
+
+            //color of pixel
+            Color p;
+
             return await Task.Run(() =>
             {
-
-
-                var c = GetParsedCoords_test(Url);
-                Rectangle rec = new Rectangle(0, 0, image.Width, image.Height);
-                var gg = Rectangle.Intersect(rec, c);
-                if (gg.IsEmpty)
-                    return new Response(HttpStatusCode.NoContent, null);
-                Bitmap bmp = CropImage(image, c.X, c.Y, c.Width, c.Height);
-                int width = bmp.Width;
-                int height = bmp.Height;
-
-                Regex pattern = new Regex(@"\d{1,3}");
-                MatchCollection m = pattern.Matches(Url);
-                int requestedX = int.Parse(m[0].Value);
-                //int requestedX = int.Parse(m[0].Value.Substring(1, m[0].Value.Length - 2));
-
-                //color of pixel
-                Color p;
-
                 for (int y = 0; y < height; y++)
                 {
                     for (int x = 0; x < width; x++)
@@ -204,59 +200,56 @@ namespace Kontur.ImageTransformer.Handlers
             return new Bitmap(img).Clone(rec, img.PixelFormat);
         }
 
-        public Bitmap CropImage(Image img, int x, int y, int w, int h)
+        public Bitmap CropImage(Image img, Rectangle gg)
         {
-
-            Rectangle section = new Rectangle(x, y, w, h);
-            // An empty bitmap which will hold the cropped image
-            Bitmap bmp = new Bitmap(section.Width, section.Height);
+            
+            Bitmap bmp = new Bitmap(gg.Width, gg.Height);
 
             Graphics g = Graphics.FromImage(bmp);
 
             // Draw the given area (section) of the source image
             // at location 0,0 on the empty bitmap (bmp)
-            g.DrawImage(img, 0, 0, section, GraphicsUnit.Pixel);
+            g.DrawImage(img, gg);
 
             return bmp;
         }
 
-        private int[] GetParsedCoords(string url)
-        {
-            try
-            {
-                var c = url.Split('/')[3]
-                    .Split(',')
-                    .Select(i => int.Parse(i))
-                    .ToArray();
+        //private int[] GetParsedCoords(string url)
+        //{
+        //    try
+        //    {
+        //        var c = url.Split('/')[3]
+        //            .Split(',')
+        //            .Select(i => int.Parse(i))
+        //            .ToArray();
 
-                Console.WriteLine(String.Format(@"In.  X: {0}, Y:{1}, W:{2}, H:{3}", c[0], c[1], c[2], c[3]));
-                if (c[2] == 0 || c[3] == 0)
-                    return null;
-                if (c[2] < 0)
-                {
-                    c[2] = Math.Abs(c[2]);
-                    c[0] = c[0] - c[2];
-                }
-                if (c[3] < 0)
-                {
-                    c[3] = Math.Abs(c[3]);
-                    c[1] = c[1] - c[3];
-                }
-                return c;
-            }
-            catch
-            {
-                return null;
-            }
-        }
+        //        Console.WriteLine(String.Format(@"In.  X: {0}, Y:{1}, W:{2}, H:{3}", c[0], c[1], c[2], c[3]));
+        //        if (c[2] == 0 || c[3] == 0)
+        //            return null;
+        //        if (c[2] < 0)
+        //        {
+        //            c[2] = Math.Abs(c[2]);
+        //            c[0] = c[0] - c[2];
+        //        }
+        //        if (c[3] < 0)
+        //        {
+        //            c[3] = Math.Abs(c[3]);
+        //            c[1] = c[1] - c[3];
+        //        }
+        //        return c;
+        //    }
+        //    catch
+        //    {
+        //        return null;
+        //    }
+        //}
 
-        private Rectangle GetParsedCoords_test(string url)
+        private Rectangle GetRectangleFromUrl(string url)
         {
             var c = url.Split('/')[3]
                 .Split(',')
                 .Select(i => int.Parse(i))
                 .ToArray();
-
             return new Rectangle(c[0], c[1], c[2], c[3]);
         }
     }

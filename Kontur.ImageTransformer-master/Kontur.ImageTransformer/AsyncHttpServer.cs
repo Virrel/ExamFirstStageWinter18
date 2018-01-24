@@ -94,6 +94,8 @@ namespace Kontur.ImageTransformer
         private async Task HandleContextAsync(HttpListenerContext listenerContext)
         {
             // TODO: implement request handling
+            var cts = new CancellationTokenSource();
+            cts.CancelAfter(1000);
             try
             {
                 if (listenerContext.Request.ContentLength64 > 1024 * 100)
@@ -115,10 +117,10 @@ namespace Kontur.ImageTransformer
                     using (var writer = new BinaryWriter(listenerContext.Response.OutputStream))
                         writer.Write(response.GetImageAsByteArray());
             }
-            //catch
-            //{
-            //    listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            //}
+            catch (OperationCanceledException)
+            {
+                listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            }
             catch (Exception ex)
             {
                 listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
@@ -128,6 +130,7 @@ namespace Kontur.ImageTransformer
             }
             finally
             {
+                cts = null;
                 listenerContext.Response.Close();
             }
         }
