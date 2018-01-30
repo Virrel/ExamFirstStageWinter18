@@ -110,12 +110,15 @@ namespace Kontur.ImageTransformer
                 //t = 0;
                 var requestBody = Image.FromStream(listenerContext.Request.InputStream);
 
-                var response = await requestHandler.GetResponse(requestUrl, requestMethod, requestBody);
+                var response = await requestHandler.GetResponse(requestUrl, requestMethod, requestBody, cts.Token);
 
                 listenerContext.Response.StatusCode = (int)response.statusCode;
                 if (response.Image != null)
-                    using (var writer = new BinaryWriter(listenerContext.Response.OutputStream))
-                        writer.Write(response.GetImageAsByteArray());
+                    response.Image.Save(listenerContext.Response.OutputStream, System.Drawing.Imaging.ImageFormat.Png);
+
+                //if (response.Image != null)
+                //    using (var writer = new BinaryWriter(listenerContext.Response.OutputStream))
+                //        writer.Write(response.GetImageAsByteArray());
             }
             catch (OperationCanceledException)
             {

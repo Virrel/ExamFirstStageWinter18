@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -8,14 +9,14 @@ using System.Threading.Tasks;
 
 namespace Kontur.ImageTransformer.Handlers
 {
-    class Response
+    class Response : IDisposable
     {
         public HttpStatusCode statusCode { get; }
         public byte[] Data { get; }
-        public System.Drawing.Image Image { get; }
+        public Bitmap Image { get; private set; }
         
 
-        public Response(HttpStatusCode code, System.Drawing.Image image)
+        public Response(HttpStatusCode code, Bitmap image)
         {
             statusCode = code;
             Image = image;
@@ -28,6 +29,11 @@ namespace Kontur.ImageTransformer.Handlers
                 Image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
                 return ms.ToArray();
             }
+        }
+
+        public void Dispose()
+        {
+            Image.Dispose();
         }
     }
 }
