@@ -100,16 +100,16 @@ namespace Kontur.ImageTransformer
             {
                 if (listenerContext.Request.ContentLength64 > 1024 * 100)
                     throw new NotImplementedException("Request body size higher than 100kb");
-
                 var requestUrl = WebUtility.UrlDecode(listenerContext.Request.Url.AbsolutePath);
                 var requestMethod = listenerContext.Request.HttpMethod;
                 //var requestBody = GetDataFromRequest(listenerContext);
                 //var t = listenerContext.Request.InputStream.Length;
-                
+                var t = new MemoryStream();
                 //var t = ms.GetBuffer().Length;
                 //t = 0;
-                var requestBody = Image.FromStream(listenerContext.Request.InputStream);
-
+                byte[] buffer = new byte[listenerContext.Request.ContentLength64];
+                var requestBody = listenerContext.Request.InputStream.CopyToAsync(t);
+                
                 var response = await requestHandler.GetResponse(requestUrl, requestMethod, requestBody, cts.Token);
 
                 listenerContext.Response.StatusCode = (int)response.statusCode;
@@ -122,7 +122,7 @@ namespace Kontur.ImageTransformer
             }
             catch (OperationCanceledException)
             {
-                listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                listenerContext.Response.StatusCode = (int)HttpStatusCode.GatewayTimeout;
             }
             catch (Exception ex)
             {
