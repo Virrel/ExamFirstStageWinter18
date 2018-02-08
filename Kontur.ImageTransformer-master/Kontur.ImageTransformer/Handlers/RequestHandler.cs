@@ -24,25 +24,25 @@ namespace Kontur.ImageTransformer.Handlers
         private class UrlToHandlerMatch
         {
             public string Pattern { get; }
-            public Func<string, Bitmap, CancellationToken, Task<Response>> handler;
-            public UrlToHandlerMatch( string pattern, Func<string, Bitmap, CancellationToken, Task<Response>> h)
+            public Func<string, Bitmap, CancellationToken, Response> handler;
+            public UrlToHandlerMatch( string pattern, Func<string, Bitmap, CancellationToken, Response> h)
             {
                 Pattern = pattern;
                 handler = h;
             }
         }
-        public async Task<Response> GetResponse(string Url, string method, Bitmap image, CancellationToken cts)
+        public Response GetResponse(string Url, string method, Bitmap image, CancellationToken cts)
         {
             var t = uthm.FirstOrDefault(i => Regex.IsMatch(Url, i.Pattern));
             if (t == null || method.ToLower() != "post")
                 return new Response(HttpStatusCode.BadRequest, null);
             
-            return await t.handler(Url, image, cts);
+            return t.handler(Url, image, cts);
         }
 
-        private async Task<Response> GetSepiaImageAsync(string Url, Bitmap image, CancellationToken cts)
+        private Response GetSepiaImageAsync(string Url, Bitmap image, CancellationToken cts)
         {
-            //return await Task.Factory.StartNew(() =>
+            //return Task.Factory.StartNew(() =>
             //{
                 var c = GetRectangleFromUrl(Url);
 
@@ -88,9 +88,9 @@ namespace Kontur.ImageTransformer.Handlers
             //});
         }
 
-        private async Task<Response> GetGrayScaleImageAsync_OLD(string Url, Bitmap image, CancellationToken cts)
+        private Response GetGrayScaleImageAsync_OLD(string Url, Bitmap image, CancellationToken cts)
         {
-            //return await Task.Factory.StartNew(() =>
+            //return Task.Factory.StartNew(() =>
             //{
                 var c = GetRectangleFromUrl(Url);
 
@@ -132,9 +132,9 @@ namespace Kontur.ImageTransformer.Handlers
             //});
         }
 
-        private async Task<Response> GetGrayScaleImageAsync(string Url, Bitmap image, CancellationToken cts)
+        private Response GetGrayScaleImageAsync(string Url, Bitmap image, CancellationToken cts)
         {
-           // return await Task.Factory.StartNew(() =>
+           // return Task.Factory.StartNew(() =>
            //{
                var c = GetRectangleFromUrl(Url);
 
@@ -173,9 +173,9 @@ namespace Kontur.ImageTransformer.Handlers
            //});
         }
 
-        private async Task<Response> GetThresholdImageAsync(string Url, Bitmap image, CancellationToken cts)
+        private Response GetThresholdImageAsync(string Url, Bitmap image, CancellationToken cts)
         {
-            //return await Task.Factory.StartNew(() =>
+            //return Task.Factory.StartNew(() =>
             //{
                 var c = GetRectangleFromUrl(Url);
 
@@ -223,7 +223,7 @@ namespace Kontur.ImageTransformer.Handlers
             //});
         }
 
-        private async Task<Response> GetThresholdImageAsync_Parallel(string Url, Bitmap image, CancellationToken cts)
+        private Response GetThresholdImageAsync_Parallel(string Url, Bitmap image, CancellationToken cts)
         {
             unsafe
             {

@@ -76,7 +76,11 @@ namespace Kontur.ImageTransformer
                     if (listener.IsListening)
                     {
                         var context = listener.GetContext();
-                        Task.Run(() => HandleContextAsync(context));
+                        int x, y;
+                        ThreadPool.GetMaxThreads(out x, out y);
+                        ThreadPool.QueueUserWorkItem(new WaitCallback(HandleContextAsync), context);
+                        Console.WriteLine("Worker threads {0}, completion t {1}", x, y);
+                        //Task.Run(() => HandleContextAsync(context));
                     }
                     else Thread.Sleep(0);
                 }
@@ -91,8 +95,10 @@ namespace Kontur.ImageTransformer
             }
         }
 
-        private async Task HandleContextAsync(HttpListenerContext listenerContext)
+        private void HandleContextAsync(Object Context)
         {
+            
+            var listenerContext = (HttpListenerContext)Context;
             // TODO: implement request handling
             var cts = new CancellationTokenSource();
             cts.CancelAfter(1000);
@@ -126,7 +132,7 @@ namespace Kontur.ImageTransformer
                 //Console.WriteLine(t.Length);
                 //var requestBody = Image.FromStream(ms);
 
-                var response = await requestHandler.GetResponse(requestUrl, requestMethod, requestBody, cts.Token);
+                var response = requestHandler.GetResponse(requestUrl, requestMethod, requestBody, cts.Token);
 
                 listenerContext.Response.StatusCode = (int)response.statusCode;
                 if (response.Image != null)
