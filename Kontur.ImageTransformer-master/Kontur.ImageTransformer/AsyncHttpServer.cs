@@ -100,22 +100,38 @@ namespace Kontur.ImageTransformer
             {
                 if (listenerContext.Request.ContentLength64 > 1024 * 100)
                     throw new NotImplementedException("Request body size higher than 100kb");
+
                 var requestUrl = WebUtility.UrlDecode(listenerContext.Request.Url.AbsolutePath);
                 var requestMethod = listenerContext.Request.HttpMethod;
+                
                 //var requestBody = GetDataFromRequest(listenerContext);
                 //var t = listenerContext.Request.InputStream.Length;
-                var t = new MemoryStream();
+                //var t = new MemoryStream();
                 //var t = ms.GetBuffer().Length;
                 //t = 0;
-                byte[] buffer = new byte[listenerContext.Request.ContentLength64];
-                var requestBody = listenerContext.Request.InputStream.CopyToAsync(t);
-                
+                //byte[] buffer = new byte[listenerContext.Request.ContentLength64];
+
+                var requestBody = new Bitmap(
+                    Image.FromStream(listenerContext.Request.InputStream));
+                //var requestBody = new Bitmap(listenerContext.Request.InputStream);
+                //var requestBody = await Task.Factory.StartNew(() =>
+                //{
+                //    return Image.FromStream(listenerContext.Request.InputStream);
+                //});
+
+                //var ms = new MemoryStream();
+                //listenerContext.Request.InputStream.CopyTo(ms);
+                //var t = ms.ToArray();
+                //Console.WriteLine(listenerContext.Request.ContentLength64);
+                //Console.WriteLine(t.Length);
+                //var requestBody = Image.FromStream(ms);
+
                 var response = await requestHandler.GetResponse(requestUrl, requestMethod, requestBody, cts.Token);
 
                 listenerContext.Response.StatusCode = (int)response.statusCode;
                 if (response.Image != null)
                     response.Image.Save(listenerContext.Response.OutputStream, System.Drawing.Imaging.ImageFormat.Png);
-
+                
                 //if (response.Image != null)
                 //    using (var writer = new BinaryWriter(listenerContext.Response.OutputStream))
                 //        writer.Write(response.GetImageAsByteArray());

@@ -31,19 +31,19 @@ namespace Kontur.ImageTransformer.Handlers
                 handler = h;
             }
         }
-        public async Task<Response> GetResponse(string Url, string code, Image image, CancellationToken cts)
+        public async Task<Response> GetResponse(string Url, string method, Bitmap image, CancellationToken cts)
         {
             var t = uthm.FirstOrDefault(i => Regex.IsMatch(Url, i.Pattern));
-            if (t == null)
+            if (t == null || method.ToLower() != "post")
                 return new Response(HttpStatusCode.BadRequest, null);
             
-            return await t.handler(Url, new Bitmap(image), cts);
+            return await t.handler(Url, image, cts);
         }
 
         private async Task<Response> GetSepiaImageAsync(string Url, Bitmap image, CancellationToken cts)
         {
-            return await Task.Run(() =>
-            {
+            //return await Task.Factory.StartNew(() =>
+            //{
                 var c = GetRectangleFromUrl(Url);
 
                 var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
@@ -62,7 +62,7 @@ namespace Kontur.ImageTransformer.Handlers
                 for (int y = 0; y < bmp.Height; ++y)
                 {
                     int line = y * bmp.Stride;
-                    for (int x = 0; x < width - bytesPerPixel; x += bytesPerPixel)
+                    for (int x = 0; x < width; x += bytesPerPixel)
                     {
                         int b = argb[line + x];
                         int g = argb[line + x + 1];
@@ -85,13 +85,13 @@ namespace Kontur.ImageTransformer.Handlers
                 image.UnlockBits(bmp);
                 return new Response(HttpStatusCode.OK, image);
                 
-            });
+            //});
         }
 
         private async Task<Response> GetGrayScaleImageAsync_OLD(string Url, Bitmap image, CancellationToken cts)
         {
-            return await Task.Run(() =>
-            {
+            //return await Task.Factory.StartNew(() =>
+            //{
                 var c = GetRectangleFromUrl(Url);
 
                 var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
@@ -129,13 +129,13 @@ namespace Kontur.ImageTransformer.Handlers
                     }
                 }
                 return new Response(HttpStatusCode.OK, bmp);
-            });
+            //});
         }
 
         private async Task<Response> GetGrayScaleImageAsync(string Url, Bitmap image, CancellationToken cts)
         {
-            return await Task.Run(() =>
-           {
+           // return await Task.Factory.StartNew(() =>
+           //{
                var c = GetRectangleFromUrl(Url);
 
                var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
@@ -154,7 +154,7 @@ namespace Kontur.ImageTransformer.Handlers
                for (int y = 0; y < bmp.Height; ++y)
                {
                    int line = y * bmp.Stride;
-                   for (int x = 0; x < width - bytesPerPixel; x += bytesPerPixel)
+                   for (int x = 0; x < width; x += bytesPerPixel)
                    {
                        int b = argb[line + x];
                        int g = argb[line + x + 1];
@@ -170,13 +170,13 @@ namespace Kontur.ImageTransformer.Handlers
                Marshal.Copy(argb, 0, bmp.Scan0, argb.Length);
                image.UnlockBits(bmp);
                return new Response(HttpStatusCode.OK, image);
-           });
+           //});
         }
 
         private async Task<Response> GetThresholdImageAsync(string Url, Bitmap image, CancellationToken cts)
         {
-            return await Task.Run(() =>
-            {
+            //return await Task.Factory.StartNew(() =>
+            //{
                 var c = GetRectangleFromUrl(Url);
 
                 var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
@@ -199,7 +199,7 @@ namespace Kontur.ImageTransformer.Handlers
                 for (int y = 0; y < bmp.Height; ++y)
                 {
                     int line = y * bmp.Stride;
-                    for (int x = 0; x < width - bytesPerPixel; x += bytesPerPixel)
+                    for (int x = 0; x < width; x += bytesPerPixel)
                     {
                         int b = argb[line + x];
                         int g = argb[line + x + 1];
@@ -220,7 +220,7 @@ namespace Kontur.ImageTransformer.Handlers
                 Marshal.Copy(argb, 0, bmp.Scan0, argb.Length);
                 image.UnlockBits(bmp);
                 return new Response(HttpStatusCode.OK, image);
-            });
+            //});
         }
 
         private async Task<Response> GetThresholdImageAsync_Parallel(string Url, Bitmap image, CancellationToken cts)
@@ -246,7 +246,7 @@ namespace Kontur.ImageTransformer.Handlers
 
                 Parallel.For(0, bmp.Height, y =>
                 {
-                    byte* line = pntrFP + ( y*bmp.Stride);
+                    byte* line = pntrFP + ( y * bmp.Stride );
                     for (int x = 0; x < width - bytesPerPixel; x += bytesPerPixel)
                     {
                         int b = line[x];
@@ -265,6 +265,7 @@ namespace Kontur.ImageTransformer.Handlers
                         line[x + 2] = (byte)r;
                     }
                 });
+                
                 image.UnlockBits(bmp);
                 return new Response(HttpStatusCode.OK, image);
             }
@@ -280,6 +281,17 @@ namespace Kontur.ImageTransformer.Handlers
                 .Split(',')
                 .Select(i => int.Parse(i))
                 .ToArray();
+            
+            if (c[2] < 0)
+            {
+                c[0] = c[0] + c[2];
+                c[2] = Math.Abs(c[2]);
+            }
+            if (c[3] < 0)
+            {
+                c[1] = c[1] + c[3];
+                c[3] = Math.Abs(c[3]);
+            }
             return new Rectangle(c[0], c[1], c[2], c[3]);
         }
     }
