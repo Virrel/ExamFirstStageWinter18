@@ -37,6 +37,7 @@ namespace Kontur.ImageTransformer.Handlers
             if (t == null || method.ToLower() != "post")
                 return new Response(HttpStatusCode.BadRequest, null);
             
+
             return t.handler(Url, image, cts);
         }
 

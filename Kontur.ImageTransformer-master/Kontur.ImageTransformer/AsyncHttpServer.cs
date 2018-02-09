@@ -11,10 +11,14 @@ namespace Kontur.ImageTransformer
 {
     internal class AsyncHttpServer : IDisposable
     {
-        public AsyncHttpServer()
+        private static Semaphore sem = new Semaphore(Environment.ProcessorCount * 4, Environment.ProcessorCount* 4);
+        public AsyncHttpServer() 
         {
             listener = new HttpListener();
             requestHandler = new RequestHandler();
+            //int maxThreadsCount = Environment.ProcessorCount * 4;
+            //ThreadPool.SetMaxThreads(maxThreadsCount, maxThreadsCount);
+            //ThreadPool.SetMinThreads(2, 2);
         }
         
         public void Start(string prefix)
@@ -76,11 +80,8 @@ namespace Kontur.ImageTransformer
                     if (listener.IsListening)
                     {
                         var context = listener.GetContext();
-                        int x, y;
-                        ThreadPool.GetMaxThreads(out x, out y);
-                        ThreadPool.QueueUserWorkItem(new WaitCallback(HandleContextAsync), context);
-                        Console.WriteLine("Worker threads {0}, completion t {1}", x, y);
-                        //Task.Run(() => HandleContextAsync(context));
+                        //ThreadPool.QueueUserWorkItem(new WaitCallback(HandleContext), context);
+                        Task.Run(() => HandleContextAsync(context));
                     }
                     else Thread.Sleep(0);
                 }
@@ -95,10 +96,10 @@ namespace Kontur.ImageTransformer
             }
         }
 
-        private void HandleContextAsync(Object Context)
+        private void HandleContextAsync(HttpListenerContext listenerContext)
         {
-            
-            var listenerContext = (HttpListenerContext)Context;
+            sem.WaitOne();
+            //var listenerContext = (HttpListenerContext)Context;
             // TODO: implement request handling
             var cts = new CancellationTokenSource();
             cts.CancelAfter(1000);
@@ -155,6 +156,7 @@ namespace Kontur.ImageTransformer
             }
             finally
             {
+                sem.Release();
                 cts = null;
                 listenerContext.Response.Close();
             }
