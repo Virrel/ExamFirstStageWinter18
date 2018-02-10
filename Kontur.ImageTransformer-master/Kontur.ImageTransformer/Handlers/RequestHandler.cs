@@ -12,7 +12,7 @@ namespace Kontur.ImageTransformer.Handlers
 {
     class RequestHandler
     { 
-        private UrlToHandlerMatch[] uthm;
+        private static UrlToHandlerMatch[] uthm;
         public RequestHandler()
         {
             uthm = new[] { new UrlToHandlerMatch(@"^/process/sepia/(-?\d+,){3}-?\d+$", GetSepiaImageAsync),
@@ -25,6 +25,7 @@ namespace Kontur.ImageTransformer.Handlers
         {
             public string Pattern { get; }
             public Func<string, Bitmap, CancellationToken, Response> handler;
+
             public UrlToHandlerMatch( string pattern, Func<string, Bitmap, CancellationToken, Response> h)
             {
                 Pattern = pattern;
@@ -34,7 +35,7 @@ namespace Kontur.ImageTransformer.Handlers
         public Response GetResponse(string Url, string method, Bitmap image, CancellationToken cts)
         {
             var t = uthm.FirstOrDefault(i => Regex.IsMatch(Url, i.Pattern));
-            if (t == null || method.ToLower() != "post")
+            if ( t == null || method.ToLower() != "post")
                 return new Response(HttpStatusCode.BadRequest, null);
             
 
@@ -45,47 +46,46 @@ namespace Kontur.ImageTransformer.Handlers
         {
             //return Task.Factory.StartNew(() =>
             //{
-                var c = GetRectangleFromUrl(Url);
+            var c = GetRectangleFromUrl(Url);
 
-                var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-                if (gg.IsEmpty)
-                    return new Response(HttpStatusCode.NoContent, null);
+            var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
+            if (gg.IsEmpty || gg.Width == 0 || gg.Height == 0)
+                return new Response(HttpStatusCode.NoContent, null);
 
-                image = GetCroppedBitmap(image, gg);
-                BitmapData bmp = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, image.PixelFormat);
+            image = GetCroppedBitmap(image, gg);
+            BitmapData bmp = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, image.PixelFormat);
 
-                byte[] argb = new byte[bmp.Stride * image.Height];
-                Marshal.Copy(bmp.Scan0, argb, 0, argb.Length);
+            byte[] argb = new byte[bmp.Stride * image.Height];
+            Marshal.Copy(bmp.Scan0, argb, 0, argb.Length);
 
-                int bytesPerPixel = Bitmap.GetPixelFormatSize(image.PixelFormat) / 8;
-                int width = bmp.Width * bytesPerPixel;
-
-                for (int y = 0; y < bmp.Height; ++y)
+            int bytesPerPixel = Bitmap.GetPixelFormatSize(image.PixelFormat) / 8;
+            int width = bmp.Width * bytesPerPixel;
+            for (int y = 0; y < bmp.Height; ++y)
+            {
+                int line = y * bmp.Stride;
+                for (int x = 0; x < width; x += bytesPerPixel)
                 {
-                    int line = y * bmp.Stride;
-                    for (int x = 0; x < width; x += bytesPerPixel)
-                    {
-                        int b = argb[line + x];
-                        int g = argb[line + x + 1];
-                        int r = argb[line + x + 2];
+                    int b = argb[line + x];
+                    int g = argb[line + x + 1];
+                    int r = argb[line + x + 2];
 
-                        int tr = (int)(0.393 * r + 0.769 * g + 0.189 * b);
-                        int tg = (int)(0.349 * r + 0.686 * g + 0.168 * b);
-                        int tb = (int)(0.272 * r + 0.534 * g + 0.131 * b);
+                    int tr = (int)(0.393 * r + 0.769 * g + 0.189 * b);
+                    int tg = (int)(0.349 * r + 0.686 * g + 0.168 * b);
+                    int tb = (int)(0.272 * r + 0.534 * g + 0.131 * b);
 
-                        r = tr > 255 ? 255 : tr;
-                        g = tg > 255 ? 255 : tg;
-                        b = tb > 255 ? 255 : tb;
+                    r = tr > 255 ? 255 : tr;
+                    g = tg > 255 ? 255 : tg;
+                    b = tb > 255 ? 255 : tb;
 
-                        argb[line + x] = (byte)b;
-                        argb[line + x + 1] = (byte)g;
-                        argb[line + x + 2] = (byte)r;
-                    }
+                    argb[line + x] = (byte)b;
+                    argb[line + x + 1] = (byte)g;
+                    argb[line + x + 2] = (byte)r;
                 }
-                Marshal.Copy(argb, 0, bmp.Scan0, argb.Length);
-                image.UnlockBits(bmp);
-                return new Response(HttpStatusCode.OK, image);
-                
+            }
+            Marshal.Copy(argb, 0, bmp.Scan0, argb.Length);
+            image.UnlockBits(bmp);
+            return new Response(HttpStatusCode.OK, image);
+
             //});
         }
 
@@ -96,7 +96,7 @@ namespace Kontur.ImageTransformer.Handlers
                 var c = GetRectangleFromUrl(Url);
 
                 var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-                if (gg.IsEmpty)
+                if (gg.IsEmpty || gg.Width == 0 || gg.Height == 0)
                     return new Response(HttpStatusCode.NoContent, null);
                 Bitmap bmp = GetCroppedBitmap(image, gg);
                 image.Dispose();
@@ -140,7 +140,7 @@ namespace Kontur.ImageTransformer.Handlers
                var c = GetRectangleFromUrl(Url);
 
                var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-               if (gg.IsEmpty)
+               if (gg.IsEmpty || gg.Width == 0 || gg.Height == 0)
                    return new Response(HttpStatusCode.NoContent, null);
 
                image = GetCroppedBitmap(image, gg);
@@ -181,7 +181,7 @@ namespace Kontur.ImageTransformer.Handlers
                 var c = GetRectangleFromUrl(Url);
 
                 var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-                if (gg.IsEmpty)
+                if (gg.IsEmpty || gg.Width == 0 || gg.Height == 0)
                     return new Response(HttpStatusCode.NoContent, null);
 
                 Regex pattern = new Regex(@"\d{1,3}");
@@ -226,28 +226,28 @@ namespace Kontur.ImageTransformer.Handlers
 
         private Response GetThresholdImageAsync_Parallel(string Url, Bitmap image, CancellationToken cts)
         {
+            var c = GetRectangleFromUrl(Url);
+
+            var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
+            if (gg.IsEmpty || gg.Width == 0 || gg.Height == 0)
+                return new Response(HttpStatusCode.NoContent, null);
+
+            var pattern = new Regex(@"\d{1,3}");
+            MatchCollection m = pattern.Matches(Url);
+            int requestedX = int.Parse(m[0].Value);
+
+            image = GetCroppedBitmap(image, gg);
+            BitmapData bmp = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, image.PixelFormat);
+
+            int bytesPerPixel = Bitmap.GetPixelFormatSize(image.PixelFormat) / 8;
+            int width = bmp.Width * bytesPerPixel;
             unsafe
             {
-                var c = GetRectangleFromUrl(Url);
-
-                var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-                if (gg.IsEmpty)
-                    return new Response(HttpStatusCode.NoContent, null);
-
-                Regex pattern = new Regex(@"\d{1,3}");
-                MatchCollection m = pattern.Matches(Url);
-                int requestedX = int.Parse(m[0].Value);
-
-                image = GetCroppedBitmap(image, gg);
-                BitmapData bmp = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, image.PixelFormat);
-
-                int bytesPerPixel = Bitmap.GetPixelFormatSize(image.PixelFormat) / 8;
-                int width = bmp.Width * bytesPerPixel;
                 byte* pntrFP = (byte*)bmp.Scan0;
 
                 Parallel.For(0, bmp.Height, y =>
                 {
-                    byte* line = pntrFP + ( y * bmp.Stride );
+                    byte* line = pntrFP + (y * bmp.Stride);
                     for (int x = 0; x < width - bytesPerPixel; x += bytesPerPixel)
                     {
                         int b = line[x];
@@ -266,11 +266,12 @@ namespace Kontur.ImageTransformer.Handlers
                         line[x + 2] = (byte)r;
                     }
                 });
-                
+
                 image.UnlockBits(bmp);
                 return new Response(HttpStatusCode.OK, image);
             }
         }
+
         private Bitmap GetCroppedBitmap(Bitmap img, Rectangle rec)
         {
             return new Bitmap(img).Clone(rec, img.PixelFormat);

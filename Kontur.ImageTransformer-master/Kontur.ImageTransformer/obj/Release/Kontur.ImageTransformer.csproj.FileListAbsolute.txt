@@ -1,0 +1,6 @@
+D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Release\Kontur.ImageTransformer.csproj.CoreCompileInputs.cache
+D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\Kontur.ImageTransformer.exe.config
+D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\Kontur.ImageTransformer.exe
+D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\Kontur.ImageTransformer.pdb
+D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Release\Kontur.ImageTransformer.exe
+D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Release\Kontur.ImageTransformer.pdb
