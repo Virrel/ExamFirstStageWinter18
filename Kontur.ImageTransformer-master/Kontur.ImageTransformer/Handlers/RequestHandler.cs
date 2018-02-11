@@ -4,7 +4,6 @@ using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Drawing;
-using System.Threading;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 
@@ -15,51 +14,50 @@ namespace Kontur.ImageTransformer.Handlers
         private static UrlToHandlerMatch[] uthm;
         public RequestHandler()
         {
-            uthm = new[] { new UrlToHandlerMatch(@"^/process/sepia/(-?\d+,){3}-?\d+$", GetSepiaImageAsync),
-                new UrlToHandlerMatch(@"^/process/grayscale/(-?\d+,){3}-?\d+$", GetGrayScaleImageAsync),
-                new UrlToHandlerMatch(@"^/process/threshold\(\d{1,3}\)/(-?\d+,){3}-?\d+$", GetThresholdImageAsync_Parallel)
+            uthm = new[] { new UrlToHandlerMatch(@"^/process/sepia/(-?\d+,){3}-?\d+$", GetSepiaImage),
+                new UrlToHandlerMatch(@"^/process/grayscale/(-?\d+,){3}-?\d+$", GetGrayScaleImage),
+                new UrlToHandlerMatch(@"^/process/threshold\(\d{1,3}\)/(-?\d+,){3}-?\d+$", GetThresholdImage)
             };
         }
 
         private class UrlToHandlerMatch
         {
             public string Pattern { get; }
-            public Func<string, Bitmap, CancellationToken, Response> handler;
+            public Func<string, Bitmap, Response> handler;
 
-            public UrlToHandlerMatch( string pattern, Func<string, Bitmap, CancellationToken, Response> h)
+            public UrlToHandlerMatch( string pattern, Func<string, Bitmap, Response> h)
             {
                 Pattern = pattern;
                 handler = h;
             }
         }
-        public Response GetResponse(string Url, string method, Bitmap image, CancellationToken cts)
+        public Response GetResponse(string Url, Bitmap image)
         {
             var t = uthm.FirstOrDefault(i => Regex.IsMatch(Url, i.Pattern));
-            if ( t == null || method.ToLower() != "post")
+            if ( t == null )
                 return new Response(HttpStatusCode.BadRequest, null);
-            
 
-            return t.handler(Url, image, cts);
+            return t.handler(Url, image);
         }
 
-        private Response GetSepiaImageAsync(string Url, Bitmap image, CancellationToken cts)
+        private Response GetSepiaImage(string Url, Bitmap image)
         {
-            //return Task.Factory.StartNew(() =>
-            //{
             var c = GetRectangleFromUrl(Url);
 
-            var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-            if (gg.IsEmpty || gg.Width == 0 || gg.Height == 0)
+            var intersection = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
+            if (intersection.IsEmpty || intersection.Width == 0 || intersection.Height == 0)
                 return new Response(HttpStatusCode.NoContent, null);
 
-            image = GetCroppedBitmap(image, gg);
-            BitmapData bmp = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, image.PixelFormat);
+            image = GetCroppedBitmap(image, intersection);
+            
+            BitmapData bmp = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadWrite, image.PixelFormat);
 
             byte[] argb = new byte[bmp.Stride * image.Height];
             Marshal.Copy(bmp.Scan0, argb, 0, argb.Length);
 
             int bytesPerPixel = Bitmap.GetPixelFormatSize(image.PixelFormat) / 8;
             int width = bmp.Width * bytesPerPixel;
+
             for (int y = 0; y < bmp.Height; ++y)
             {
                 int line = y * bmp.Stride;
@@ -85,193 +83,93 @@ namespace Kontur.ImageTransformer.Handlers
             Marshal.Copy(argb, 0, bmp.Scan0, argb.Length);
             image.UnlockBits(bmp);
             return new Response(HttpStatusCode.OK, image);
-
-            //});
         }
 
-        private Response GetGrayScaleImageAsync_OLD(string Url, Bitmap image, CancellationToken cts)
-        {
-            //return Task.Factory.StartNew(() =>
-            //{
-                var c = GetRectangleFromUrl(Url);
-
-                var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-                if (gg.IsEmpty || gg.Width == 0 || gg.Height == 0)
-                    return new Response(HttpStatusCode.NoContent, null);
-                Bitmap bmp = GetCroppedBitmap(image, gg);
-                image.Dispose();
-                //if (bmp == null)
-                //    return new Response(HttpStatusCode.ExpectationFailed, null);
-                int width = bmp.Width;
-                int height = bmp.Height;
-
-                //color of pixel
-                Color p;
-
-                for (int y = 0; y < height; y++)
-                {
-                    if (cts.IsCancellationRequested)
-                        return new Response(HttpStatusCode.GatewayTimeout, null);
-                    for (int x = 0; x < width; x++)
-                    {
-                        //get pixel value
-                        p = bmp.GetPixel(x, y);
-
-                        //extract pixel component ARGB
-                        int a = p.A;
-                        int r = p.R;
-                        int g = p.G;
-                        int b = p.B;
-                        
-                        r = g = b = (r + g + b) / 3;
-
-                        //set the new RGB value in image pixel
-                        bmp.SetPixel(x, y, Color.FromArgb(a, r, g, b));
-                    }
-                }
-                return new Response(HttpStatusCode.OK, bmp);
-            //});
-        }
-
-        private Response GetGrayScaleImageAsync(string Url, Bitmap image, CancellationToken cts)
-        {
-           // return Task.Factory.StartNew(() =>
-           //{
-               var c = GetRectangleFromUrl(Url);
-
-               var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-               if (gg.IsEmpty || gg.Width == 0 || gg.Height == 0)
-                   return new Response(HttpStatusCode.NoContent, null);
-
-               image = GetCroppedBitmap(image, gg);
-               BitmapData bmp = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, image.PixelFormat);
-
-               byte[] argb = new byte[bmp.Stride * image.Height];
-               Marshal.Copy(bmp.Scan0, argb, 0, argb.Length);
-
-               int bytesPerPixel = Bitmap.GetPixelFormatSize(image.PixelFormat) / 8;
-               int width = bmp.Width * bytesPerPixel;
-
-               for (int y = 0; y < bmp.Height; ++y)
-               {
-                   int line = y * bmp.Stride;
-                   for (int x = 0; x < width; x += bytesPerPixel)
-                   {
-                       int b = argb[line + x];
-                       int g = argb[line + x + 1];
-                       int r = argb[line + x + 2];
-
-                       r = g = b = (r + g + b) / 3;
-
-                       argb[line + x] = (byte)b;
-                       argb[line + x + 1] = (byte)g;
-                       argb[line + x + 2] = (byte)r;
-                   }
-               }
-               Marshal.Copy(argb, 0, bmp.Scan0, argb.Length);
-               image.UnlockBits(bmp);
-               return new Response(HttpStatusCode.OK, image);
-           //});
-        }
-
-        private Response GetThresholdImageAsync(string Url, Bitmap image, CancellationToken cts)
-        {
-            //return Task.Factory.StartNew(() =>
-            //{
-                var c = GetRectangleFromUrl(Url);
-
-                var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-                if (gg.IsEmpty || gg.Width == 0 || gg.Height == 0)
-                    return new Response(HttpStatusCode.NoContent, null);
-
-                Regex pattern = new Regex(@"\d{1,3}");
-                MatchCollection m = pattern.Matches(Url);
-                int requestedX = int.Parse(m[0].Value);
-
-                image = GetCroppedBitmap(image, gg);
-                BitmapData bmp = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, image.PixelFormat);
-
-                byte[] argb = new byte[bmp.Stride * image.Height];
-                Marshal.Copy(bmp.Scan0, argb, 0, argb.Length);
-
-                int bytesPerPixel = Bitmap.GetPixelFormatSize(image.PixelFormat) / 8;
-                int width = bmp.Width * bytesPerPixel;
-
-                for (int y = 0; y < bmp.Height; ++y)
-                {
-                    int line = y * bmp.Stride;
-                    for (int x = 0; x < width; x += bytesPerPixel)
-                    {
-                        int b = argb[line + x];
-                        int g = argb[line + x + 1];
-                        int r = argb[line + x + 2];
-
-                        int intensity = (r + g + b) / 3;
-
-                        if (intensity >= 255 * requestedX / 100)
-                            r = g = b = 255;
-                        else
-                            r = g = b = 0;
-
-                        argb[line + x] = (byte)b;
-                        argb[line + x + 1] = (byte)g;
-                        argb[line + x + 2] = (byte)r;
-                    }
-                }
-                Marshal.Copy(argb, 0, bmp.Scan0, argb.Length);
-                image.UnlockBits(bmp);
-                return new Response(HttpStatusCode.OK, image);
-            //});
-        }
-
-        private Response GetThresholdImageAsync_Parallel(string Url, Bitmap image, CancellationToken cts)
+        private Response GetGrayScaleImage(string Url, Bitmap image)
         {
             var c = GetRectangleFromUrl(Url);
 
-            var gg = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-            if (gg.IsEmpty || gg.Width == 0 || gg.Height == 0)
+            var intersection = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
+            if (intersection.IsEmpty || intersection.Width == 0 || intersection.Height == 0)
                 return new Response(HttpStatusCode.NoContent, null);
 
-            var pattern = new Regex(@"\d{1,3}");
-            MatchCollection m = pattern.Matches(Url);
-            int requestedX = int.Parse(m[0].Value);
+            image = GetCroppedBitmap(image, intersection);
+            BitmapData bmp = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadWrite, image.PixelFormat);
 
-            image = GetCroppedBitmap(image, gg);
-            BitmapData bmp = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, image.PixelFormat);
+            byte[] argb = new byte[bmp.Stride * image.Height];
+            Marshal.Copy(bmp.Scan0, argb, 0, argb.Length);
 
             int bytesPerPixel = Bitmap.GetPixelFormatSize(image.PixelFormat) / 8;
             int width = bmp.Width * bytesPerPixel;
-            unsafe
+
+            for (int y = 0; y < bmp.Height; ++y)
             {
-                byte* pntrFP = (byte*)bmp.Scan0;
-
-                Parallel.For(0, bmp.Height, y =>
+                int line = y * bmp.Stride;
+                for (int x = 0; x < width; x += bytesPerPixel)
                 {
-                    byte* line = pntrFP + (y * bmp.Stride);
-                    for (int x = 0; x < width - bytesPerPixel; x += bytesPerPixel)
-                    {
-                        int b = line[x];
-                        int g = line[x + 1];
-                        int r = line[x + 2];
+                    int b = argb[line + x];
+                    int g = argb[line + x + 1];
+                    int r = argb[line + x + 2];
 
-                        int intensity = (r + g + b) / 3;
+                    r = g = b = (r + g + b) / 3;
 
-                        if (intensity >= 255 * requestedX / 100)
-                            r = g = b = 255;
-                        else
-                            r = g = b = 0;
-
-                        line[x] = (byte)b;
-                        line[x + 1] = (byte)g;
-                        line[x + 2] = (byte)r;
-                    }
-                });
-
-                image.UnlockBits(bmp);
-                return new Response(HttpStatusCode.OK, image);
+                    argb[line + x] = (byte)b;
+                    argb[line + x + 1] = (byte)g;
+                    argb[line + x + 2] = (byte)r;
+                }
             }
+            Marshal.Copy(argb, 0, bmp.Scan0, argb.Length);
+            image.UnlockBits(bmp);
+            return new Response(HttpStatusCode.OK, image);
         }
 
+        private Response GetThresholdImage(string Url, Bitmap image)
+        {
+            var c = GetRectangleFromUrl(Url);
+
+            var intersection = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
+            if (intersection.IsEmpty || intersection.Width == 0 || intersection.Height == 0)
+                return new Response(HttpStatusCode.NoContent, null);
+
+            Regex pattern = new Regex(@"\d{1,3}");
+            MatchCollection m = pattern.Matches(Url);
+            int requestedX = int.Parse(m[0].Value);
+
+            image = GetCroppedBitmap(image, intersection);
+            BitmapData bmp = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadWrite, image.PixelFormat);
+
+            byte[] argb = new byte[bmp.Stride * image.Height];
+            Marshal.Copy(bmp.Scan0, argb, 0, argb.Length);
+
+            int bytesPerPixel = Bitmap.GetPixelFormatSize(image.PixelFormat) / 8;
+            int width = bmp.Width * bytesPerPixel;
+
+            for (int y = 0; y < bmp.Height; ++y)
+            {
+                int line = y * bmp.Stride;
+                for (int x = 0; x < width; x += bytesPerPixel)
+                {
+                    int b = argb[line + x];
+                    int g = argb[line + x + 1];
+                    int r = argb[line + x + 2];
+
+                    int intensity = (r + g + b) / 3;
+
+                    if (intensity >= 255 * requestedX / 100)
+                        r = g = b = 255;
+                    else
+                        r = g = b = 0;
+
+                    argb[line + x] = (byte)b;
+                    argb[line + x + 1] = (byte)g;
+                    argb[line + x + 2] = (byte)r;
+                }
+            }
+            Marshal.Copy(argb, 0, bmp.Scan0, argb.Length);
+            image.UnlockBits(bmp);
+            return new Response(HttpStatusCode.OK, image);
+        }
+        
         private Bitmap GetCroppedBitmap(Bitmap img, Rectangle rec)
         {
             return new Bitmap(img).Clone(rec, img.PixelFormat);
