@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Net;
 
-namespace Kontur.ImageTransformer.Handlers
+namespace Kontur.ImageTransformer.Classes
 {
     class Response
     {

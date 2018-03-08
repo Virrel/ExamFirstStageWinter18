@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using Kontur.ImageTransformer.Classes;
 
 namespace Kontur.ImageTransformer.Handlers
 {
@@ -14,9 +15,13 @@ namespace Kontur.ImageTransformer.Handlers
         private static UrlToHandlerMatch[] uthm;
         public RequestHandler()
         {
-            uthm = new[] { new UrlToHandlerMatch(@"^/process/sepia/(-?\d+,){3}-?\d+$", GetSepiaImage),
-                new UrlToHandlerMatch(@"^/process/grayscale/(-?\d+,){3}-?\d+$", GetGrayScaleImage),
-                new UrlToHandlerMatch(@"^/process/threshold\(\d{1,3}\)/(-?\d+,){3}-?\d+$", GetThresholdImage)
+            uthm = new[] 
+            {
+                new UrlToHandlerMatch(@"^/process/rotate-cw/(-?\d+,){3}-?\d+$", Rotate90),
+                new UrlToHandlerMatch(@"^/process/rotate-ccw/(-?\d+,){3}-?\d+$", Rotate270),
+                new UrlToHandlerMatch(@"^/process/flip-h/(-?\d+,){3}-?\d+$", FlipHorizontal),
+                new UrlToHandlerMatch(@"^/process/flip-v/(-?\d+,){3}-?\d+$", FlipVertical),
+                new UrlToHandlerMatch(@"^/process/sendBack", SendBack)
             };
         }
 
@@ -36,8 +41,257 @@ namespace Kontur.ImageTransformer.Handlers
             var t = uthm.FirstOrDefault(i => Regex.IsMatch(Url, i.Pattern));
             if ( t == null )
                 return new Response(HttpStatusCode.BadRequest, null);
-
+            
             return t.handler(Url, image);
+        }
+
+        private Response SendBack(string Url, Bitmap image)
+        {
+            return new Response(HttpStatusCode.OK, image);
+        }
+
+        private Response Rotate90(string Url, Bitmap image)
+        {
+            var c = GetRectangleFromUrl(Url);
+
+            var intersection = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
+            if (intersection.IsEmpty || intersection.Width == 0 || intersection.Height == 0)
+                return new Response(HttpStatusCode.NoContent, null);
+
+            int newWidth = image.Height;
+               int newHeight = image.Width;
+
+            Bitmap transfBmp = new Bitmap(newWidth, newHeight, PixelFormat.Format32bppArgb);
+
+            int originalWidth = image.Width;
+            int originalHeight = image.Height;
+            int newWidthMinusOne = newWidth - 1;
+            int newHeightMinusOne = newHeight - 1;
+
+            int yOffset = 0;
+            int destinationY = 0;
+            BitmapData originalData = image.LockBits(
+                new Rectangle(0, 0, originalWidth, originalHeight),
+                ImageLockMode.ReadOnly,
+                PixelFormat.Format32bppArgb);
+            BitmapData transfData = transfBmp.LockBits(
+                new Rectangle(0, 0, transfBmp.Width, transfBmp.Height),
+                ImageLockMode.WriteOnly,
+                PixelFormat.Format32bppArgb);
+
+            unsafe
+            {
+                int* originalPointer = (int*)originalData.Scan0.ToPointer();
+                int* transfPntr = (int*)transfData.Scan0.ToPointer();
+                
+                        yOffset = -originalWidth;
+                        for (int y = 0; y < originalHeight; ++y)
+                        {
+                            yOffset += originalWidth;
+                            int destinationX = newWidthMinusOne - y;
+                            destinationY = -newWidth;
+                            for (int x = 0; x < originalWidth; ++x)
+                            {
+                                int sourcePosition = (x + yOffset);
+                                destinationY += newWidth;
+                                int destinationPosition =
+                                        (destinationX + destinationY);
+                                transfPntr[destinationPosition] =
+                                    originalPointer[sourcePosition];
+                            }
+                        }
+                originalPointer = null;
+                transfPntr = null;
+                image.UnlockBits(originalData);
+                transfBmp.UnlockBits(transfData);
+                image.Dispose();
+
+                return new Response(HttpStatusCode.OK,
+                    GetCroppedBitmap(transfBmp, intersection));
+            }
+        }
+        
+        private Response Rotate270(string Url, Bitmap image)
+        {
+            var c = GetRectangleFromUrl(Url);
+
+            var intersection = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
+            if (intersection.IsEmpty || intersection.Width == 0 || intersection.Height == 0)
+                return new Response(HttpStatusCode.NoContent, null);
+
+            int newWidth = image.Height;
+            int newHeight = image.Width;
+
+            Bitmap transfBmp = new Bitmap(newWidth, newHeight, PixelFormat.Format32bppArgb);
+
+            int originalWidth = image.Width;
+            int originalHeight = image.Height;
+            int newWidthMinusOne = newWidth - 1;
+            int newHeightMinusOne = newHeight - 1;
+
+            int yOffset = 0;
+            int destinationY = 0;
+            BitmapData originalData = image.LockBits(
+                new Rectangle(0, 0, originalWidth, originalHeight),
+                ImageLockMode.ReadOnly,
+                PixelFormat.Format32bppArgb);
+            BitmapData transfData = transfBmp.LockBits(
+                new Rectangle(0, 0, transfBmp.Width, transfBmp.Height),
+                ImageLockMode.WriteOnly,
+                PixelFormat.Format32bppArgb);
+
+            unsafe
+            {
+                int* originalPointer = (int*)originalData.Scan0.ToPointer();
+                int* transfPntr = (int*)transfData.Scan0.ToPointer();
+
+                yOffset = -originalWidth;
+                for (int y = 0; y < originalHeight; ++y)
+                //Parallel.For(0, originalHeight, (y) =>
+                {
+                    int destinationX = y;
+                    yOffset += originalWidth;
+                    for (int x = 0; x < originalWidth; ++x)
+                    {
+                        int sourcePosition = (x + yOffset);
+                        destinationY = newHeightMinusOne - x;
+                        int destinationPosition =
+                            (destinationX + destinationY * newWidth);
+                        transfPntr[destinationPosition] =
+                            originalPointer[sourcePosition];
+                    }
+                }
+                originalPointer = null;
+                transfPntr = null;
+                image.UnlockBits(originalData);
+                transfBmp.UnlockBits(transfData);
+                image.Dispose();
+
+                return new Response(HttpStatusCode.OK,
+                    GetCroppedBitmap(transfBmp, intersection));
+            }
+        }
+
+        private Response FlipVertical(string Url, Bitmap image)
+        {
+            var c = GetRectangleFromUrl(Url);
+
+            var intersection = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
+            if (intersection.IsEmpty || intersection.Width == 0 || intersection.Height == 0)
+                return new Response(HttpStatusCode.NoContent, null);
+
+            int newWidth = image.Width;
+            int newHeight = image.Height;
+
+            Bitmap transfBmp = new Bitmap(newWidth, newHeight, PixelFormat.Format32bppArgb);
+
+            int originalWidth = image.Width;
+            int originalHeight = image.Height;
+            int newWidthMinusOne = newWidth - 1;
+            int newHeightMinusOne = newHeight - 1;
+
+            int yOffset = 0;
+            int destinationY = 0;
+            BitmapData originalData = image.LockBits(
+                new Rectangle(0, 0, originalWidth, originalHeight),
+                ImageLockMode.ReadOnly,
+                PixelFormat.Format32bppArgb);
+            BitmapData transfData = transfBmp.LockBits(
+                new Rectangle(0, 0, transfBmp.Width, transfBmp.Height),
+                ImageLockMode.WriteOnly,
+                PixelFormat.Format32bppArgb);
+
+            unsafe
+            {
+                int* originalPointer = (int*)originalData.Scan0.ToPointer();
+                int* transfPntr = (int*)transfData.Scan0.ToPointer();
+
+                yOffset = -originalWidth;
+                destinationY = originalWidth * originalHeight;
+                for (int y = 0; y < originalHeight; ++y)
+                //Parallel.For(0, originalHeight, (y) =>
+                {
+                    destinationY -= originalWidth;
+                    yOffset += originalWidth;
+                    for (int x = 0; x < originalWidth; ++x)
+                    {
+                        int sourcePosition = x + yOffset;
+                        //destinationY = originalWidth - 1 - x;
+                        int destinationPosition = x + destinationY;
+                        transfPntr[destinationPosition] = originalPointer[sourcePosition];
+                    }
+                }
+                originalPointer = null;
+                transfPntr = null;
+                image.UnlockBits(originalData);
+                transfBmp.UnlockBits(transfData);
+                image.Dispose();
+
+                return new Response(HttpStatusCode.OK,
+                    GetCroppedBitmap(transfBmp, intersection));
+            }
+        }
+        
+        private Response FlipHorizontal(string Url, Bitmap image)
+        {
+            Rectangle coordinates = GetRectangleFromUrl(Url);
+
+            var intersection = Rectangle.Intersect(
+                new Rectangle(0, 0, image.Width, image.Height),
+                coordinates);
+
+            if (intersection.IsEmpty 
+                || intersection.Width == 0 
+                || intersection.Height == 0)
+                return new Response(HttpStatusCode.NoContent, null);
+
+            int newWidth = intersection.Width;
+            int newHeight = intersection.Height;
+            int shiftX = intersection.X;
+            int shiftY = intersection.Y;
+            int originalWidth = image.Width;
+            int originalHeight = image.Height;
+
+            Bitmap transfBmp = new Bitmap(newWidth, newHeight, PixelFormat.Format32bppArgb);
+
+            BitmapData originalData = image.LockBits(
+                new Rectangle(0, 0, originalWidth, originalHeight),
+                ImageLockMode.ReadOnly,
+                PixelFormat.Format32bppArgb);
+            BitmapData transfData = transfBmp.LockBits(
+                new Rectangle(0, 0, transfBmp.Width, transfBmp.Height),
+                ImageLockMode.WriteOnly,
+                PixelFormat.Format32bppArgb);
+
+            int widthMinShiftX = originalWidth - shiftX;
+            int widthMinShiftXMinNewWidth = widthMinShiftX - newWidth;
+            int newHeigtPlusShiftY = newHeight + shiftY;
+            int lineOffset = originalWidth * (shiftY - 1);
+            int destinationPosition = 0;
+
+            unsafe
+            {
+                int* sourcePntr = (int*)originalData.Scan0.ToPointer();
+                int* transfPntr = (int*)transfData.Scan0.ToPointer();
+
+                for (int y = shiftY; y < newHeigtPlusShiftY; ++y)
+                {
+                    lineOffset += originalWidth;
+                    for (int x = widthMinShiftX; x > widthMinShiftXMinNewWidth; --x)
+                    {
+                        int sourcePosition = x + lineOffset - 1;
+                        transfPntr[destinationPosition] = sourcePntr[sourcePosition];
+                        destinationPosition++;
+                    }
+                }
+                sourcePntr = null;
+                transfPntr = null;
+                image.UnlockBits(originalData);
+                transfBmp.UnlockBits(transfData);
+                image.Dispose();
+                //var bmp = GetCroppedBitmap(transfBmp, intersection);
+                return new Response(HttpStatusCode.OK, transfBmp);
+            }
         }
 
         private Response GetSepiaImage(string Url, Bitmap image)

@@ -4,3 +4,10 @@ D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\
 D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\Kontur.ImageTransformer.pdb
 D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Release\Kontur.ImageTransformer.exe
 D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Release\Kontur.ImageTransformer.pdb
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\Kontur.ImageTransformer.exe.config
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\Kontur.ImageTransformer.exe
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\Kontur.ImageTransformer.pdb
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Release\Kontur.ImageTransformer.csproj.CoreCompileInputs.cache
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Release\Kontur.ImageTransformer.exe
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Release\Kontur.ImageTransformer.pdb
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Release\Kontur.ImageTransformer.csprojResolveAssemblyReference.cache

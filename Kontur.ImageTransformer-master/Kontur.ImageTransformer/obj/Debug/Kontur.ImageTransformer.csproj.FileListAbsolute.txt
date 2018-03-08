@@ -16,3 +16,12 @@ D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Ko
 D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Kontur.ImageTransformer.csprojResolveAssemblyReference.cache
 D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\SmartThreadPool.dll
 D:\KonturVir\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\SmartThreadPool.pdb
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\Kontur.ImageTransformer.exe.config
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\Kontur.ImageTransformer.exe
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\Kontur.ImageTransformer.pdb
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Kontur.ImageTransformer.csproj.CoreCompileInputs.cache
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Kontur.ImageTransformer.exe
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Kontur.ImageTransformer.pdb
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Kontur.ImageTransformer.csprojResolveAssemblyReference.cache
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\ImageProcessor.dll
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\ImageProcessor.xml
