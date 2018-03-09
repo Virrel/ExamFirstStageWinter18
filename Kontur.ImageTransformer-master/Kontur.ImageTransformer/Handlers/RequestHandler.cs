@@ -49,27 +49,30 @@ namespace Kontur.ImageTransformer.Handlers
         {
             return new Response(HttpStatusCode.OK, image);
         }
-
+        
         private Response Rotate90(string Url, Bitmap image)
         {
-            var c = GetRectangleFromUrl(Url);
+            Rectangle coordinates = GetRectangleFromUrl(Url);
 
-            var intersection = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-            if (intersection.IsEmpty || intersection.Width == 0 || intersection.Height == 0)
+            var intersection = Rectangle.Intersect(
+                new Rectangle(0, 0, image.Height, image.Width),
+                coordinates);
+
+            if (intersection.IsEmpty
+                || intersection.Width == 0
+                || intersection.Height == 0)
                 return new Response(HttpStatusCode.NoContent, null);
 
-            int newWidth = image.Height;
-               int newHeight = image.Width;
+
+            int newWidth = intersection.Width;
+            int newHeight = intersection.Height;
+            int shiftX = intersection.X;
+            int shiftY = intersection.Y;
+            int originalWidth = image.Width;
+            int originalHeight = image.Height;
 
             Bitmap transfBmp = new Bitmap(newWidth, newHeight, PixelFormat.Format32bppArgb);
 
-            int originalWidth = image.Width;
-            int originalHeight = image.Height;
-            int newWidthMinusOne = newWidth - 1;
-            int newHeightMinusOne = newHeight - 1;
-
-            int yOffset = 0;
-            int destinationY = 0;
             BitmapData originalData = image.LockBits(
                 new Rectangle(0, 0, originalWidth, originalHeight),
                 ImageLockMode.ReadOnly,
@@ -78,59 +81,64 @@ namespace Kontur.ImageTransformer.Handlers
                 new Rectangle(0, 0, transfBmp.Width, transfBmp.Height),
                 ImageLockMode.WriteOnly,
                 PixelFormat.Format32bppArgb);
+            
+            int destinationPosition = newWidth - 1;
+            int destinationShiftX = newWidth - 1;
+            int lineOffset = originalWidth * (originalHeight - shiftX - newWidth - 1);
+            int heightMinShiftX = originalHeight - shiftX;
+            int newHeightPlusShiftY = shiftY + newHeight;
 
             unsafe
             {
                 int* originalPointer = (int*)originalData.Scan0.ToPointer();
                 int* transfPntr = (int*)transfData.Scan0.ToPointer();
                 
-                        yOffset = -originalWidth;
-                        for (int y = 0; y < originalHeight; ++y)
-                        {
-                            yOffset += originalWidth;
-                            int destinationX = newWidthMinusOne - y;
-                            destinationY = -newWidth;
-                            for (int x = 0; x < originalWidth; ++x)
-                            {
-                                int sourcePosition = (x + yOffset);
-                                destinationY += newWidth;
-                                int destinationPosition =
-                                        (destinationX + destinationY);
-                                transfPntr[destinationPosition] =
-                                    originalPointer[sourcePosition];
-                            }
-                        }
-                originalPointer = null;
-                transfPntr = null;
+                for (int y = originalHeight - shiftX - newWidth; y < heightMinShiftX; ++y)
+                {
+                    lineOffset += originalWidth;
+                    destinationPosition = destinationShiftX;
+                    for (int x = shiftY; x < newHeightPlusShiftY; ++x)
+                    {
+                        int sourcePosition = (x + lineOffset);
+                        transfPntr[destinationPosition] =
+                            originalPointer[sourcePosition];
+                        destinationPosition += newWidth;
+                    }
+                    --destinationShiftX;
+                }
+                //originalPointer = null;
+                //transfPntr = null;
                 image.UnlockBits(originalData);
                 transfBmp.UnlockBits(transfData);
                 image.Dispose();
 
-                return new Response(HttpStatusCode.OK,
-                    GetCroppedBitmap(transfBmp, intersection));
+                return new Response(HttpStatusCode.OK, transfBmp);
             }
         }
         
         private Response Rotate270(string Url, Bitmap image)
         {
-            var c = GetRectangleFromUrl(Url);
+            Rectangle coordinates = GetRectangleFromUrl(Url);
 
-            var intersection = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-            if (intersection.IsEmpty || intersection.Width == 0 || intersection.Height == 0)
+            var intersection = Rectangle.Intersect(
+                new Rectangle(0, 0, image.Height, image.Width),
+                coordinates);
+
+            if (intersection.IsEmpty
+                || intersection.Width == 0
+                || intersection.Height == 0)
                 return new Response(HttpStatusCode.NoContent, null);
 
-            int newWidth = image.Height;
-            int newHeight = image.Width;
+
+            int newWidth = intersection.Width;
+            int newHeight = intersection.Height;
+            int shiftX = intersection.X;
+            int shiftY = intersection.Y;
+            int originalWidth = image.Width;
+            int originalHeight = image.Height;
 
             Bitmap transfBmp = new Bitmap(newWidth, newHeight, PixelFormat.Format32bppArgb);
 
-            int originalWidth = image.Width;
-            int originalHeight = image.Height;
-            int newWidthMinusOne = newWidth - 1;
-            int newHeightMinusOne = newHeight - 1;
-
-            int yOffset = 0;
-            int destinationY = 0;
             BitmapData originalData = image.LockBits(
                 new Rectangle(0, 0, originalWidth, originalHeight),
                 ImageLockMode.ReadOnly,
@@ -140,58 +148,63 @@ namespace Kontur.ImageTransformer.Handlers
                 ImageLockMode.WriteOnly,
                 PixelFormat.Format32bppArgb);
 
+            int destinationPosition = 0;
+            int destinationShiftX = newWidth * (newHeight);
+            int lineOffset = originalWidth * (shiftX - 1);
+            int widthMinShiftY = originalWidth - shiftY;
+            int shiftXPlusNewWidth = shiftX + newWidth;
+            int widthMinShiftYMinNewHight = widthMinShiftY - newHeight;
+
             unsafe
             {
                 int* originalPointer = (int*)originalData.Scan0.ToPointer();
                 int* transfPntr = (int*)transfData.Scan0.ToPointer();
-
-                yOffset = -originalWidth;
-                for (int y = 0; y < originalHeight; ++y)
-                //Parallel.For(0, originalHeight, (y) =>
+                
+                for (int y = shiftX; y < shiftXPlusNewWidth; ++y)
                 {
-                    int destinationX = y;
-                    yOffset += originalWidth;
-                    for (int x = 0; x < originalWidth; ++x)
+                    lineOffset += originalWidth;
+                    destinationPosition = destinationShiftX;
+                    for (int x = widthMinShiftYMinNewHight; x < widthMinShiftY; ++x)
                     {
-                        int sourcePosition = (x + yOffset);
-                        destinationY = newHeightMinusOne - x;
-                        int destinationPosition =
-                            (destinationX + destinationY * newWidth);
+                        int sourcePosition = (x + lineOffset);
+                        destinationPosition -= newWidth;
                         transfPntr[destinationPosition] =
                             originalPointer[sourcePosition];
                     }
+                    ++destinationShiftX;
                 }
-                originalPointer = null;
-                transfPntr = null;
+                //originalPointer = null;
+                //transfPntr = null;
                 image.UnlockBits(originalData);
                 transfBmp.UnlockBits(transfData);
                 image.Dispose();
 
-                return new Response(HttpStatusCode.OK,
-                    GetCroppedBitmap(transfBmp, intersection));
+                return new Response(HttpStatusCode.OK, transfBmp);
             }
         }
 
         private Response FlipVertical(string Url, Bitmap image)
         {
-            var c = GetRectangleFromUrl(Url);
+            Rectangle coordinates = GetRectangleFromUrl(Url);
 
-            var intersection = Rectangle.Intersect(new Rectangle(0, 0, image.Width, image.Height), c);
-            if (intersection.IsEmpty || intersection.Width == 0 || intersection.Height == 0)
+            var intersection = Rectangle.Intersect(
+                new Rectangle(0, 0, image.Width, image.Height),
+                coordinates);
+
+            if (intersection.IsEmpty
+                || intersection.Width == 0
+                || intersection.Height == 0)
                 return new Response(HttpStatusCode.NoContent, null);
 
-            int newWidth = image.Width;
-            int newHeight = image.Height;
+            int newWidth = intersection.Width;
+            int newHeight = intersection.Height;
+            int shiftX = intersection.X;
+            int shiftY = intersection.Y;
+            int originalWidth = image.Width;
+            int originalHeight = image.Height;
 
             Bitmap transfBmp = new Bitmap(newWidth, newHeight, PixelFormat.Format32bppArgb);
 
-            int originalWidth = image.Width;
-            int originalHeight = image.Height;
-            int newWidthMinusOne = newWidth - 1;
-            int newHeightMinusOne = newHeight - 1;
-
-            int yOffset = 0;
-            int destinationY = 0;
             BitmapData originalData = image.LockBits(
                 new Rectangle(0, 0, originalWidth, originalHeight),
                 ImageLockMode.ReadOnly,
@@ -201,37 +214,37 @@ namespace Kontur.ImageTransformer.Handlers
                 ImageLockMode.WriteOnly,
                 PixelFormat.Format32bppArgb);
 
+            int heightMinShiftY = originalHeight - shiftY;
+            int heightMinShiftYMinnewHeight = heightMinShiftY - newHeight;
+            int newWidthPlusShiftX = newWidth + shiftX;
+            int lineOffset = originalWidth * (originalHeight - shiftY);
+            int destinationPosition = 0;
+
             unsafe
             {
-                int* originalPointer = (int*)originalData.Scan0.ToPointer();
+                int* sourcePntr = (int*)originalData.Scan0.ToPointer();
                 int* transfPntr = (int*)transfData.Scan0.ToPointer();
 
-                yOffset = -originalWidth;
-                destinationY = originalWidth * originalHeight;
-                for (int y = 0; y < originalHeight; ++y)
-                //Parallel.For(0, originalHeight, (y) =>
+                for (int y = heightMinShiftY; y > heightMinShiftYMinnewHeight; --y)
                 {
-                    destinationY -= originalWidth;
-                    yOffset += originalWidth;
-                    for (int x = 0; x < originalWidth; ++x)
+                    lineOffset -= originalWidth;
+                    for (int x = shiftX; x < newWidthPlusShiftX; ++x)
                     {
-                        int sourcePosition = x + yOffset;
-                        //destinationY = originalWidth - 1 - x;
-                        int destinationPosition = x + destinationY;
-                        transfPntr[destinationPosition] = originalPointer[sourcePosition];
+                        int sourcePosition = x + lineOffset;
+                        transfPntr[destinationPosition] = sourcePntr[sourcePosition];
+                        destinationPosition++;
                     }
                 }
-                originalPointer = null;
+                sourcePntr = null;
                 transfPntr = null;
                 image.UnlockBits(originalData);
                 transfBmp.UnlockBits(transfData);
                 image.Dispose();
-
-                return new Response(HttpStatusCode.OK,
-                    GetCroppedBitmap(transfBmp, intersection));
+                //var bmp = GetCroppedBitmap(transfBmp, intersection);
+                return new Response(HttpStatusCode.OK, transfBmp);
             }
         }
-        
+
         private Response FlipHorizontal(string Url, Bitmap image)
         {
             Rectangle coordinates = GetRectangleFromUrl(Url);
