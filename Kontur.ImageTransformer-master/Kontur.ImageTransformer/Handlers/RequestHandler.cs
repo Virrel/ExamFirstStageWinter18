@@ -58,7 +58,7 @@ namespace Kontur.ImageTransformer.Handlers
                 || intersection.Width == 0
                 || intersection.Height == 0)
                 return new Response(HttpStatusCode.NoContent, null);
-            
+
             int newWidth = intersection.Width;
             int newHeight = intersection.Height;
             int shiftX = intersection.X;
@@ -83,39 +83,40 @@ namespace Kontur.ImageTransformer.Handlers
             int heightMinShiftX = originalHeight - shiftX;
             int newHeightPlusShiftY = shiftY + newHeight;
 
-            if (token.IsCancellationRequested)
-                return new Response(HttpStatusCode.ServiceUnavailable, null);
 
             unsafe
             {
                 int* originalPointer = (int*)originalData.Scan0.ToPointer();
                 int* transfPntr = (int*)transfData.Scan0.ToPointer();
-
-                for (int y = originalHeight - shiftX - newWidth; y < heightMinShiftX; ++y)
+                try
                 {
-                    //
-                    lineOffset += originalWidth;
-                    destinationPosition = destinationShiftX;
-                    for (int x = shiftY; x < newHeightPlusShiftY; ++x)
+                    for (int y = originalHeight - shiftX - newWidth; y < heightMinShiftX; ++y)
                     {
-                        int sourcePosition = (x + lineOffset);
-                        transfPntr[destinationPosition] =
-                            originalPointer[sourcePosition];
-                        destinationPosition += newWidth;
+                        token.ThrowIfCancellationRequested();
+                        lineOffset += originalWidth;
+                        destinationPosition = destinationShiftX;
+                        for (int x = shiftY; x < newHeightPlusShiftY; ++x)
+                        {
+                            int sourcePosition = (x + lineOffset);
+                            transfPntr[destinationPosition] =
+                                originalPointer[sourcePosition];
+                            destinationPosition += newWidth;
+                        }
+                        --destinationShiftX;
                     }
-                    --destinationShiftX;
                 }
-                //sourcePntr = null;
-                //transfPntr = null;
-                image.UnlockBits(originalData);
-                transfBmp.UnlockBits(transfData);
-                image.Dispose();
+                catch (OperationCanceledException)
+                {
+                    return new Response(HttpStatusCode.ServiceUnavailable, null);
+                }
+                finally
+                {
+                    image.UnlockBits(originalData);
+                    transfBmp.UnlockBits(transfData);
+                    image.Dispose();
+                }
             }
-
-            if (token.IsCancellationRequested)
-                return new Response(HttpStatusCode.ServiceUnavailable, null);
             return new Response(HttpStatusCode.OK, transfBmp);
-
         }
 
         private Response Rotate270(string Url, Bitmap image, CancellationToken token)
@@ -157,39 +158,40 @@ namespace Kontur.ImageTransformer.Handlers
             int shiftXPlusNewWidth = shiftX + newWidth;
             int widthMinShiftYMinNewHight = widthMinShiftY - newHeight;
 
-            if (token.IsCancellationRequested)
-                return new Response(HttpStatusCode.ServiceUnavailable, null);
 
             unsafe
             {
                 int* originalPointer = (int*)originalData.Scan0.ToPointer();
                 int* transfPntr = (int*)transfData.Scan0.ToPointer();
-
-                for (int y = shiftX; y < shiftXPlusNewWidth; ++y)
+                try
                 {
-                    //
-                    lineOffset += originalWidth;
-                    destinationPosition = destinationShiftX;
-                    for (int x = widthMinShiftYMinNewHight; x < widthMinShiftY; ++x)
+                    for (int y = shiftX; y < shiftXPlusNewWidth; ++y)
                     {
-                        int sourcePosition = (x + lineOffset);
-                        destinationPosition -= newWidth;
-                        transfPntr[destinationPosition] =
-                            originalPointer[sourcePosition];
+                        token.ThrowIfCancellationRequested();
+                        lineOffset += originalWidth;
+                        destinationPosition = destinationShiftX;
+                        for (int x = widthMinShiftYMinNewHight; x < widthMinShiftY; ++x)
+                        {
+                            int sourcePosition = (x + lineOffset);
+                            destinationPosition -= newWidth;
+                            transfPntr[destinationPosition] =
+                                originalPointer[sourcePosition];
+                        }
+                        ++destinationShiftX;
                     }
-                    ++destinationShiftX;
                 }
-                //sourcePntr = null;
-                //transfPntr = null;
-                image.UnlockBits(originalData);
-                transfBmp.UnlockBits(transfData);
-                image.Dispose();
+                catch (OperationCanceledException)
+                {
+                    return new Response(HttpStatusCode.ServiceUnavailable, null);
+                }
+                finally
+                {
+                    image.UnlockBits(originalData);
+                    transfBmp.UnlockBits(transfData);
+                    image.Dispose();
+                }
             }
-
-            if (token.IsCancellationRequested)
-                return new Response(HttpStatusCode.ServiceUnavailable, null);
             return new Response(HttpStatusCode.OK, transfBmp);
-
         }
 
         private Response FlipVertical(string Url, Bitmap image, CancellationToken token)
@@ -229,35 +231,37 @@ namespace Kontur.ImageTransformer.Handlers
             int lineOffset = originalWidth * (originalHeight - shiftY);
             int destinationPosition = 0;
 
-            if (token.IsCancellationRequested)
-                return new Response(HttpStatusCode.ServiceUnavailable, null);
             unsafe
             {
                 int* sourcePntr = (int*)originalData.Scan0.ToPointer();
                 int* transfPntr = (int*)transfData.Scan0.ToPointer();
-
-                for (int y = heightMinShiftY; y > heightMinShiftYMinnewHeight; --y)
+                try
                 {
-                    //
-                    lineOffset -= originalWidth;
-                    for (int x = shiftX; x < newWidthPlusShiftX; ++x)
+                    for (int y = heightMinShiftY; y > heightMinShiftYMinnewHeight; --y)
                     {
-                        int sourcePosition = x + lineOffset;
-                        transfPntr[destinationPosition] = sourcePntr[sourcePosition];
-                        destinationPosition++;
+                        token.ThrowIfCancellationRequested();
+                        lineOffset -= originalWidth;
+                        for (int x = shiftX; x < newWidthPlusShiftX; ++x)
+                        {
+                            int sourcePosition = x + lineOffset;
+                            transfPntr[destinationPosition] = sourcePntr[sourcePosition];
+                            destinationPosition++;
+                        }
                     }
                 }
-                //sourcePntr = null;
-                //transfPntr = null;
-                image.UnlockBits(originalData);
-                transfBmp.UnlockBits(transfData);
-                image.Dispose();
+                catch (OperationCanceledException)
+                {
+                    return new Response(HttpStatusCode.ServiceUnavailable, null);
+                }
+                finally
+                {
+                    image.UnlockBits(originalData);
+                    transfBmp.UnlockBits(transfData);
+                    image.Dispose();
+                }
             }
-            if (token.IsCancellationRequested)
-                return new Response(HttpStatusCode.ServiceUnavailable, null);
-            //var bmp = GetCroppedBitmap(transfBmp, intersection);
-            return new Response(HttpStatusCode.OK, transfBmp);
 
+            return new Response(HttpStatusCode.OK, transfBmp);
         }
 
         private Response FlipHorizontal(string Url, Bitmap image, CancellationToken token)
@@ -297,34 +301,35 @@ namespace Kontur.ImageTransformer.Handlers
             int lineOffset = originalWidth * (shiftY - 1);
             int destinationPosition = 0;
 
-            if (token.IsCancellationRequested)
-                return new Response(HttpStatusCode.ServiceUnavailable, null);
             unsafe
             {
                 int* sourcePntr = (int*)originalData.Scan0.ToPointer();
                 int* transfPntr = (int*)transfData.Scan0.ToPointer();
-
-                for (int y = shiftY; y < newHeigtPlusShiftY; ++y)
+                try
                 {
-                    //
-                    lineOffset += originalWidth;
-                    for (int x = widthMinShiftX; x > widthMinShiftXMinNewWidth; --x)
+                    for (int y = shiftY; y < newHeigtPlusShiftY; ++y)
                     {
-                        int sourcePosition = x + lineOffset - 1;
-                        transfPntr[destinationPosition] = sourcePntr[sourcePosition];
-                        destinationPosition++;
+                        token.ThrowIfCancellationRequested();
+                        lineOffset += originalWidth;
+                        for (int x = widthMinShiftX; x > widthMinShiftXMinNewWidth; --x)
+                        {
+                            int sourcePosition = x + lineOffset - 1;
+                            transfPntr[destinationPosition] = sourcePntr[sourcePosition];
+                            destinationPosition++;
+                        }
                     }
                 }
-
-                //sourcePntr = null;
-                //transfPntr = null;
-                image.UnlockBits(originalData);
-                transfBmp.UnlockBits(transfData);
-                image.Dispose();
-
-                if (token.IsCancellationRequested)
+                catch (OperationCanceledException)
+                {
                     return new Response(HttpStatusCode.ServiceUnavailable, null);
-                //var bmp = GetCroppedBitmap(transfBmp, intersection);
+                }
+                finally
+                {
+                    image.UnlockBits(originalData);
+                    transfBmp.UnlockBits(transfData);
+                    image.Dispose();
+                }
+                
                 return new Response(HttpStatusCode.OK, transfBmp);
             }
         }

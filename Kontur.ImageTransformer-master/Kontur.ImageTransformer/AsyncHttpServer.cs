@@ -20,7 +20,7 @@ namespace Kontur.ImageTransformer
 
             var taskPCore = 4;
             maxTasks = (Environment.ProcessorCount - 1) * taskPCore;
-            maxRequests = maxTasks * 9;
+            maxRequests = maxTasks * 8;
             requestHandler = new RequestHandler();
             listenerContextQueue = new ConcurrentQueue<HttpListenerContext>();
         }
@@ -42,12 +42,12 @@ namespace Kontur.ImageTransformer
                     };
                     listenerThread.Start();
 
-                    handlerThread = new Thread(ProcessParallel)
+                    consumerThread = new Thread(ConsumeQueue)
                     {
                         IsBackground = true,
                         Priority = ThreadPriority.AboveNormal
                     };
-                    handlerThread.Start();
+                    consumerThread.Start();
 
                     isRunning = true;
                 }
@@ -81,7 +81,6 @@ namespace Kontur.ImageTransformer
 
             listener.Close();
         }
-        
         private void Listen()
         {
             //var maxRequests = maxTasks*2;
@@ -108,26 +107,62 @@ namespace Kontur.ImageTransformer
                     //    sem.Release();
                     //}, cts.Token);
 
+                    //Hand made
+                    //var context = listener.GetContext();
+                    //if (listenerContextQueue.Count() > maxRequests)// && countTask > maxTasks)
+                    //{
+                    //    context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                    //    context.Response.Close();
+                    //}
+                    //else
+                    //{
+                    //    listenerContextQueue.Enqueue(context);
+                    //}
+
                     //Last resort
                     if (listener.IsListening)
                     {
                         var context = listener.GetContext();
-                        if (lockTaken || listenerContextQueue.Count() > maxRequests)// && countTask > maxTasks)
+                        //bool consumed = false;
+                        //if (lockTaken || listenerContextQueue.Count() > maxRequests)// && countTask > maxTasks)
+                        //{
+                        //    consumed = true;
+                        //    Task.Run(() =>
+                        //    {
+                        //        context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                        //        context.Response.Close();
+                        //    });
+                        //}
+                        //else
+                        //{
+                        //    if (runningTasksCount < maxTasks)
+                        //    {
+                        //        consumed = true;
+                        //        listenerContextQueue.Enqueue(context);
+                        //    }
+                        //    //++count;
+                        //    //if (count > maxTasks)
+                        //    //{
+                        //    //    count = 0;
+                        //    //    startProcessing = true;
+                        //    //}
+                        //}
+                        //if (consumed == false)
+                        if (runningTasksCount < maxTasks && lockTaken == false)
                         {
-                            context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
-                            context.Response.Close();
+                            listenerContextQueue.Enqueue(context);
                         }
                         else
                         {
-                            listenerContextQueue.Enqueue(context);
-                            ++count;
-                            if (count > maxTasks)
+
+                            Task.Run(() =>
                             {
-                                count = 0;
-                                limitReached = true;
-                            }
+                                context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                                context.Response.Close();
+                            });
                         }
                     }
+
                     //Custom Collection
                     //var context = listener.GetContext();
                     //var cts = new CancellationTokenSource(500);
@@ -164,60 +199,45 @@ namespace Kontur.ImageTransformer
             }
         }
 
-        ConcurrentQueue<HttpListenerContext> buffer;
-        private void ProcessParallel()
+        private void ConsumeQueue()
         {
             HttpListenerContext context;
-            var generationPassed = false;
             while (true)
             {
-                if (!listenerContextQueue.IsEmpty)
-                //if (limitReached || generationPassed)
+                if (!listenerContextQueue.IsEmpty && runningTasksCount < maxTasks)
                 {
-                    generationPassed = false;
-                    limitReached = false;
                     lockTaken = true;
                     lock (listenerContextQueue)
                     {
-                        buffer = listenerContextQueue;
-                        listenerContextQueue = new ConcurrentQueue<HttpListenerContext>();
+                        //buffer = listenerContextQueue;
+                        //listenerContextQueue = new ConcurrentQueue<HttpListenerContext>();
+                        while (listenerContextQueue.TryDequeue(out context))
+                        //for (int i = 0; i < listenerContextQueue.Count; ++i)
+                        {
+                            //listenerContextQueue.TryDequeue(out context);
+                            HttpListenerContext localContext = context;
+                            Interlocked.Increment(ref runningTasksCount);
+                            Task.Run(() =>
+                            {
+                                var cts = new CancellationTokenSource(950);
+                                HandleContextAsync(localContext, cts.Token);
+                            }).ContinueWith(delegate { Interlocked.Decrement(ref runningTasksCount); }); ;
+                        }
                     }
                     lockTaken = false;
-                    while (buffer.TryDequeue(out context))
-                    {
-                        HttpListenerContext localContext = context;
-                        Interlocked.Increment(ref runningTasksCount);
-                        Task.Run(() =>
-                        {
-                            var cts = new CancellationTokenSource(900);
-                            var task = HandleContextAsync(localContext, cts.Token);
-                            var workTime = TimeSpan.FromMilliseconds(900);
-
-                            if (!task.Wait(workTime))
-                            {
-                                cts.Cancel();
-                                context.Response.StatusCode = (int)HttpStatusCode.OK;
-                                context.Response.Close();
-                            }
-
-                        }).ContinueWith(delegate { Interlocked.Decrement(ref runningTasksCount); });
-                        
-                    }
                 }
                 else
-                {
                     Thread.Sleep(50);
-                    //if (!listenerContextQueue.IsEmpty)
-                    //    generationPassed = true;
-                }
             }
         }
     
 
-        private async Task HandleContextAsync(HttpListenerContext listenerContext, CancellationToken token)
+        private void HandleContextAsync(HttpListenerContext listenerContext, CancellationToken token)
         {
             try
             {
+                token.ThrowIfCancellationRequested();
+
                 if (listenerContext.Request.HttpMethod != "POST")
                     throw new Exception("Not POST request");
 
@@ -240,19 +260,14 @@ namespace Kontur.ImageTransformer
             catch(OperationCanceledException)
             {
                 listenerContext.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
-                //Console.WriteLine(ex.ToString());
             }
             catch (Exception ex)
             {
                 listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                Console.WriteLine(ex.ToString());
             }
             finally
             {
-                //Console.Error.WriteLine("Thread {0} complete", Thread.CurrentThread.ManagedThreadId);
-                if(!token.IsCancellationRequested)
-                    listenerContext.Response.Close();
-                //Console.WriteLine("Elapsed {0} on thread {1}", sw.ElapsedMilliseconds, Task.CurrentId);
+                listenerContext.Response.Close();
             }
         }
         private readonly HttpListener listener;
@@ -265,9 +280,8 @@ namespace Kontur.ImageTransformer
         private readonly int maxRequests;
         private RequestHandler requestHandler;
         private ConcurrentQueue<HttpListenerContext> listenerContextQueue;
-        private Thread handlerThread;
+        private Thread consumerThread;
         private int runningTasksCount;
-        private bool lockTaken = false;
-        private bool limitReached = false;
+        private volatile bool lockTaken = false;
     }
 }
