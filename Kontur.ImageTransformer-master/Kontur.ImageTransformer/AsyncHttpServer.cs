@@ -5,19 +5,26 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Drawing.Imaging;
 using System.Drawing;
+using System.Collections.Generic;
 using Kontur.ImageTransformer.Classes;
-using ImageProcessor;
+using System.Collections.Concurrent;
+using System.Linq;
 
 namespace Kontur.ImageTransformer
 {
     internal class AsyncHttpServer : IDisposable
     {
-        public AsyncHttpServer() 
+        public AsyncHttpServer()
         {
             listener = new HttpListener();
-            maxThreads = Environment.ProcessorCount * 4;
+
+            var taskPCore = 4;
+            maxTasks = (Environment.ProcessorCount - 1) * taskPCore;
+            maxRequests = maxTasks * 9;
+            requestHandler = new RequestHandler();
+            listenerContextQueue = new ConcurrentQueue<HttpListenerContext>();
         }
-        
+
         public void Start(string prefix)
         {
             lock (listener)
@@ -35,7 +42,14 @@ namespace Kontur.ImageTransformer
                     };
                     listenerThread.Start();
 
-                        isRunning = true;
+                    handlerThread = new Thread(ProcessParallel)
+                    {
+                        IsBackground = true,
+                        Priority = ThreadPriority.AboveNormal
+                    };
+                    handlerThread.Start();
+
+                    isRunning = true;
                 }
             }
         }
@@ -51,7 +65,7 @@ namespace Kontur.ImageTransformer
 
                 listenerThread.Abort();
                 listenerThread.Join();
-                
+
                 isRunning = false;
             }
         }
@@ -67,81 +81,77 @@ namespace Kontur.ImageTransformer
 
             listener.Close();
         }
-        private OrderTaskScheduler _scheduler = new OrderTaskScheduler("Name");
-
-        private  void Listen()
+        
+        private void Listen()
         {
+            //var maxRequests = maxTasks*2;
             //TaskFactory factory = new TaskFactory(_scheduler);
-            ThreadPool.SetMaxThreads(2, 2);
-            try
-            {
-                while (listener.IsListening)
-                {
-                    //DEFAULT WAY
-                        var context = listener.GetContext();
-                    Task.Run(() => HandleContextAsync(context));
-                        //Task.Delay(100);
-            //        var context = await listener.GetContextAsync();
-            //        Task.Factory.StartNew(
-            //() => { HandleContextAsync(context); },
-            //CancellationToken.None,
-            //TaskCreationOptions.None,
-            //this._scheduler);
-            //        Task.Delay(100);
-
-
-                    //var context = */listener.BeginGetContext(new AsyncCallback(HandleContextAsync), listener).AsyncWaitHandle.WaitOne();
-                    //var t = Task.Run(() => HandleContextAsync(context));
-                    //RunWithTimeout(context, TimeSpan.FromMilliseconds(1000));
-                    /*
-                    if (GetRequestCount() > 100)
-                    {
-                        context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                        context.Response.Close();
-                        //RemThread();
-                    }
-                    else
-                    {
-                        Task.Run(() => HandleContextAsync(context));
-                        AddThread();
-                        ///Метод ThreadPool.RegisterWaitForSingleObject 
-                        //Action<object> action = (c) =>
-                        //{
-                        //    HandleContextAsync(c);
-                        //};
-                        //var task = new Task(action, context);
-                        //task.Start();
-                    }*/
-
-                    //Console.WriteLine("concurrentThreadsCount = {0}; maxThreadsCount = {1}", GetRequestCount(), maxThreadsCount);
-                }
-            }
-            catch (ThreadAbortException)
-            {
-                return;
-            }
-            catch (Exception)
-            { }
-        }
-
-        private void Listen_original()
-        {
-            var sem = new Semaphore(maxThreads, maxThreads);
-            while (true)
+            //ThreadPool.SetMaxThreads(2, 2);
+            //var veryLimitedScheduler = new VeryLimitedScheduler();
+            //var factory = new TaskFactory(veryLimitedScheduler);
+            var count = 0;
+            while (listener.IsListening)
             {
                 try
                 {
-                    sem.WaitOne();
-                    listener.GetContextAsync().ContinueWith((c) =>
-                    { 
-                       sem.Release();
+                    //var context = listener.GetContext();
+                    //DEFAULT WAY
+                    //var cts = new CancellationTokenSource(500);
+                    //Task.Run(() => HandleContextAsync(context, cts.Token), cts.Token);
 
-                       var context = c;
-                       Task.Run(() =>
-                       {
-                          // HandleContextAsync(context);
-                       });
-                    });
+                    //Semaphore
+                    //var context = listener.GetContext();
+                    //var cts = new CancellationTokenSource(500);
+                    //Task.Run(() => {
+                    //    sem.Wait();
+                    //    HandleContextAsync(context, cts.Token);
+                    //    sem.Release();
+                    //}, cts.Token);
+
+                    //Last resort
+                    if (listener.IsListening)
+                    {
+                        var context = listener.GetContext();
+                        if (lockTaken || listenerContextQueue.Count() > maxRequests)// && countTask > maxTasks)
+                        {
+                            context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                            context.Response.Close();
+                        }
+                        else
+                        {
+                            listenerContextQueue.Enqueue(context);
+                            ++count;
+                            if (count > maxTasks)
+                            {
+                                count = 0;
+                                limitReached = true;
+                            }
+                        }
+                    }
+                    //Custom Collection
+                    //var context = listener.GetContext();
+                    //var cts = new CancellationTokenSource(500);
+                    //list.Add(new Tuple<HttpListenerContext, DateTime, CancellationToken>(context, DateTime.Now, cts.Token));
+
+                    //Task.Run(() => HandleContextAsync(context, cts.Token), cts.Token);
+
+                    //Custom collection handler
+                    //if (list.Count >= 50)
+                    //    ProcessParallel();
+                    //if( list.Count < 50 && !lockTaken)
+                    //    list.Add(new Tuple<HttpListenerContext, CancellationToken>(context, token));
+                    //else
+                    //{
+                    //    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                    //    context.Response.Close();
+                    //}
+
+                    //Custom task scheduler
+                    //        Task.Factory.StartNew(
+                    //() => { HandleContextAsync(context); },
+                    //cts.Token,
+                    //TaskCreationOptions.None,
+                    //this._scheduler);
                 }
                 catch (ThreadAbortException)
                 {
@@ -149,78 +159,88 @@ namespace Kontur.ImageTransformer
                 }
                 catch (Exception ex)
                 {
-
+                    Console.WriteLine(ex.ToString());
                 }
             }
         }
 
-        private int concurrentThreadsCount = 0;
-        private int maxThreadsCount = 0;
-        private System.Collections.Concurrent.BlockingCollection<bool> cq = new System.Collections.Concurrent.BlockingCollection<bool>();
+        ConcurrentQueue<HttpListenerContext> buffer;
+        private void ProcessParallel()
+        {
+            HttpListenerContext context;
+            var generationPassed = false;
+            while (true)
+            {
+                if (!listenerContextQueue.IsEmpty)
+                //if (limitReached || generationPassed)
+                {
+                    generationPassed = false;
+                    limitReached = false;
+                    lockTaken = true;
+                    lock (listenerContextQueue)
+                    {
+                        buffer = listenerContextQueue;
+                        listenerContextQueue = new ConcurrentQueue<HttpListenerContext>();
+                    }
+                    lockTaken = false;
+                    while (buffer.TryDequeue(out context))
+                    {
+                        HttpListenerContext localContext = context;
+                        Interlocked.Increment(ref runningTasksCount);
+                        Task.Run(() =>
+                        {
+                            var cts = new CancellationTokenSource(900);
+                            var task = HandleContextAsync(localContext, cts.Token);
+                            var workTime = TimeSpan.FromMilliseconds(900);
 
-        private int GetRequestCount()
-        {
-            return cq.Count;
-        }
+                            if (!task.Wait(workTime))
+                            {
+                                cts.Cancel();
+                                context.Response.StatusCode = (int)HttpStatusCode.OK;
+                                context.Response.Close();
+                            }
 
-        private void AddThread()
-        {
-            //if (concurrentThreadsCount > maxThreadsCount)
-            //    maxThreadsCount = concurrentThreadsCount;
-            //concurrentThreadsCount += 1;
-            cq.Add(false);
+                        }).ContinueWith(delegate { Interlocked.Decrement(ref runningTasksCount); });
+                        
+                    }
+                }
+                else
+                {
+                    Thread.Sleep(50);
+                    //if (!listenerContextQueue.IsEmpty)
+                    //    generationPassed = true;
+                }
+            }
         }
-        private void RemThread()
-        {
-            //--concurrentThreadsCount;
-            cq.Take();
-        }
-        private void HandleContextAsync_mock(object Context)
-        {
-            var listenerContext = (HttpListenerContext)Context;
-            listenerContext.Response.Close();
-        }
+    
 
-        private async void HandleContextAsync(object Context)
+        private async Task HandleContextAsync(HttpListenerContext listenerContext, CancellationToken token)
         {
-            var listenerContext =  (HttpListenerContext)Context;
-            //AddThread();
-            //Console.Error.WriteLine("Thread {0} started", Thread.CurrentThread.ManagedThreadId);
-            //var listener = (HttpListener)Context.AsyncState;
-            //var listenerContext = listener.EndGetContext(Context);
             try
             {
-                
-                if (listenerContext.Request.ContentLength64 > 1024 * 100)
-                    throw new NotImplementedException("Request body size higher than 100kb");
-
                 if (listenerContext.Request.HttpMethod != "POST")
-                    throw new NotImplementedException("Not POST request");
+                    throw new Exception("Not POST request");
 
-                //if (listenerContext.Request.InputStream.Length <= 0)
-                //    throw new NotImplementedException("Empty body");
-
+                if (listenerContext.Request.ContentLength64 > 1024 * 100)
+                    throw new Exception("Request body size higher than 100kb");
+                
                 var requestUrl = WebUtility.UrlDecode(listenerContext.Request.Url.AbsolutePath);
 
-                /*using (var bitmap = new Bitmap(listenerContext.Request.InputStream))
-                //using (var image = Image.FromStream(listenerContext.Request.InputStream))
-                {
-                    var Rot = new Rotate();
-                    var resultBitmap = await Rot.InternalRotateImage(UrlHandler.GetRotationType(requestUrl), bitmap);
-                    //image.RotateFlip(UrlHandler.GetRotationType(requestUrl));
-                    listenerContext.Response.StatusCode = (int)HttpStatusCode.OK;
-                    //image.Save(listenerContext.Response.OutputStream, ImageFormat.Png);
-                    resultBitmap.Save(listenerContext.Response.OutputStream, ImageFormat.Png);
-                }*/
-                /// OLD
                 using (var requestBody = new Bitmap(listenerContext.Request.InputStream))
                 {
-                    var response = new RequestHandler().GetResponse(requestUrl, requestBody);
-                    listenerContext.Response.StatusCode = (int)response.statusCode;
-                    if (response.Image != null)
-                        response.Image.Save(listenerContext.Response.OutputStream, ImageFormat.Png);
-                }
+                    if (requestBody.Height > 1000 || requestBody.Width > 1000)
+                        throw new Exception("Image width or height larger 1000px");
 
+                    var response = requestHandler.GetResponse(requestUrl, requestBody, token);
+                    listenerContext.Response.StatusCode = (int)response.statusCode;
+                    if (response.Picture != null)
+                        response.Picture.Save(listenerContext.Response.OutputStream, ImageFormat.Png);
+                }
+            }
+            catch(OperationCanceledException)
+            {
+                listenerContext.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                //Console.WriteLine(ex.ToString());
             }
             catch (Exception ex)
             {
@@ -230,17 +250,24 @@ namespace Kontur.ImageTransformer
             finally
             {
                 //Console.Error.WriteLine("Thread {0} complete", Thread.CurrentThread.ManagedThreadId);
-                try { listenerContext.Response.Close(); }
-                catch{ }
+                if(!token.IsCancellationRequested)
+                    listenerContext.Response.Close();
                 //Console.WriteLine("Elapsed {0} on thread {1}", sw.ElapsedMilliseconds, Task.CurrentId);
             }
         }
-
         private readonly HttpListener listener;
         
         private Thread listenerThread;
         private bool disposed;
         private volatile bool isRunning;
-        private int maxThreads;
+
+        private readonly int maxTasks;
+        private readonly int maxRequests;
+        private RequestHandler requestHandler;
+        private ConcurrentQueue<HttpListenerContext> listenerContextQueue;
+        private Thread handlerThread;
+        private int runningTasksCount;
+        private bool lockTaken = false;
+        private bool limitReached = false;
     }
 }

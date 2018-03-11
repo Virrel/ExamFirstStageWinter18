@@ -23,5 +23,13 @@ D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj
 D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Kontur.ImageTransformer.exe
 D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Kontur.ImageTransformer.pdb
 D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Debug\Kontur.ImageTransformer.csprojResolveAssemblyReference.cache
-D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\ImageProcessor.dll
-D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\ImageProcessor.xml
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\System.Reactive.Core.dll
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\System.Reactive.Interfaces.dll
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\System.Reactive.Linq.dll
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\System.Reactive.PlatformServices.dll
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\System.Reactive.Windows.Threading.dll
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\System.Reactive.Core.xml
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\System.Reactive.Interfaces.xml
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\System.Reactive.Linq.xml
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\System.Reactive.PlatformServices.xml
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Debug\System.Reactive.Windows.Threading.xml

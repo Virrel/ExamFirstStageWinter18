@@ -11,3 +11,13 @@ D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj
 D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Release\Kontur.ImageTransformer.exe
 D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Release\Kontur.ImageTransformer.pdb
 D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\obj\Release\Kontur.ImageTransformer.csprojResolveAssemblyReference.cache
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\System.Reactive.Core.dll
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\System.Reactive.Interfaces.dll
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\System.Reactive.Linq.dll
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\System.Reactive.PlatformServices.dll
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\System.Reactive.Windows.Threading.dll
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\System.Reactive.Core.xml
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\System.Reactive.Interfaces.xml
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\System.Reactive.Linq.xml
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\System.Reactive.PlatformServices.xml
+D:\Git\KonturWinter18\Kontur.ImageTransformer-master\Kontur.ImageTransformer\bin\Release\System.Reactive.Windows.Threading.xml
